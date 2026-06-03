@@ -49,6 +49,7 @@ export default function App() {
   const [inputMode, setInputMode] = useState<InputMode>('hybrid');
   const [performancePreset, setPerformancePreset] = useState<PerformancePreset>('performance');
   const [fpsPreset, setFpsPreset] = useState<30 | 60>(60);
+  const [isLowBattery, setIsLowBattery] = useState<boolean>(false);
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>({
     oneHanded: 'none',
     largeText: false,
@@ -75,8 +76,11 @@ export default function App() {
   }[]>([]);
   const [lexiconStatusMsg, setLexiconStatusMsg] = useState<string>('');
 
+  const [dynamicAudioMix, setDynamicAudioMix] = useState<boolean>(true);
+
   const overdriveActiveRef = useRef<boolean>(false);
   const shakeIntensitySettingRef = useRef<number>(2);
+  const dynamicAudioMixRef = useRef<boolean>(true);
   
   useEffect(() => {
     overdriveActiveRef.current = overdriveActive;
@@ -85,6 +89,28 @@ export default function App() {
   useEffect(() => {
     shakeIntensitySettingRef.current = shakeIntensitySetting;
   }, [shakeIntensitySetting]);
+
+  useEffect(() => {
+    dynamicAudioMixRef.current = dynamicAudioMix;
+  }, [dynamicAudioMix]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && 'getBattery' in navigator) {
+      (navigator as any).getBattery().then((battery: any) => {
+        const updateBattery = () => {
+          const isLow = battery.level <= 0.20 && !battery.charging;
+          setIsLowBattery(isLow);
+        };
+        updateBattery();
+        battery.addEventListener('levelchange', updateBattery);
+        battery.addEventListener('chargingchange', updateBattery);
+        return () => {
+          battery.removeEventListener('levelchange', updateBattery);
+          battery.removeEventListener('chargingchange', updateBattery);
+        };
+      }).catch(() => {});
+    }
+  }, []);
   
   // Simulation values (Combat Shield + Active Tracking refs)
   const [shieldHealth, setShieldHealth] = useState<number>(100);
@@ -808,8 +834,8 @@ export default function App() {
         const currentWpm = elapsedSec > 2 ? (correct / 5) / (elapsedSec / 60) : 0;
         const calculatedAcc = total > 0 ? (correct / total) * 100 : 0;
 
-        // Feedback sound context dynamics (altered pitch in overdrive)
-        gameAudio.updateAmbientDrone(prev.streak, currentWpm, overdriveActiveRef.current);
+        // Feedback sound context dynamics (altered pitch in overdrive & dynamic mixing)
+        gameAudio.updateAmbientDrone(prev.streak, currentWpm, overdriveActiveRef.current, dynamicAudioMixRef.current);
 
         return {
           ...prev,
@@ -1799,37 +1825,45 @@ export default function App() {
                     </div>
 
                     {/* Performance Profile Preset */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500 font-bold">PERFORMANCE:</span>
-                      <div className="flex gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPerformancePreset('performance');
-                            setFpsPreset(60);
-                          }}
-                          className={`px-2 py-0.5 border rounded text-[8px] uppercase transition cursor-pointer ${
-                            performancePreset === 'performance' 
-                              ? 'border-emerald-500 bg-emerald-950/20 text-emerald-400 font-bold' 
-                              : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
-                          }`}
-                        >
-                          60FPS // SILKY SPEED
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPerformancePreset('efficiency');
-                            setFpsPreset(30);
-                          }}
-                          className={`px-2 py-0.5 border rounded text-[8px] uppercase transition cursor-pointer ${
-                            performancePreset === 'efficiency' 
-                              ? 'border-amber-500 bg-amber-950/20 text-amber-500 font-bold' 
-                              : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
-                          }`}
-                        >
-                          30FPS // BATTERY SAVER
-                        </button>
+                    <div className="flex flex-col gap-1 border-t border-zinc-900 pt-1.5 pb-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-500 font-bold">PERFORMANCE:</span>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPerformancePreset('performance');
+                              setFpsPreset(60);
+                            }}
+                            className={`px-2 py-0.5 border rounded text-[8px] uppercase transition cursor-pointer ${
+                              performancePreset === 'performance' 
+                                ? 'border-emerald-500 bg-emerald-950/20 text-emerald-400 font-bold' 
+                                : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
+                            }`}
+                          >
+                            60FPS // SILKY SPEED
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPerformancePreset('efficiency');
+                              setFpsPreset(30);
+                            }}
+                            className={`px-2 py-0.5 border rounded text-[8px] uppercase transition cursor-pointer ${
+                              performancePreset === 'efficiency' 
+                                ? 'border-amber-500 bg-amber-950/20 text-amber-500 font-bold' 
+                                : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
+                            }`}
+                          >
+                            30FPS // BATTERY SAVER
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[7.5px] border-t border-zinc-950/40 pt-1 uppercase">
+                        <span className="text-zinc-550 font-bold">POWER SAVER PROTOCOL:</span>
+                        <span className={`font-bold font-mono tracking-wider ${performancePreset === 'efficiency' || isLowBattery ? 'text-amber-500 animate-pulse' : 'text-zinc-550'}`}>
+                          {performancePreset === 'efficiency' || isLowBattery ? '⚠️ ACTIVE (EFFICIENT)' : 'INACTIVE (MAX RANGE)'}
+                        </span>
                       </div>
                     </div>
 
@@ -1882,8 +1916,13 @@ export default function App() {
                     {/* Kinetic Impact Screen-Shake Slider */}
                     <div className="flex flex-col gap-1 border-t border-zinc-900 pt-1.5 pb-1">
                       <div className="flex justify-between items-center text-[8px]">
-                        <span className="text-zinc-500 font-bold">KINETIC COCKPIT IMPACT:</span>
-                        <span className="text-amber-500 font-bold">
+                        <span className="text-zinc-500 font-bold">KINETIC RUMBLER:</span>
+                        <span className={`font-bold ${
+                          neonThemeColor === 'purple' ? 'text-purple-400' :
+                          neonThemeColor === 'green' ? 'text-emerald-400' :
+                          neonThemeColor === 'pink' ? 'text-rose-400' :
+                          'text-cyan-400'
+                        }`}>
                           {['OFF', 'LIGHT', 'MEDIUM', 'HEAVY', 'SHOCKWAVE'][shakeIntensitySetting]}
                         </span>
                       </div>
@@ -1893,8 +1932,38 @@ export default function App() {
                         max="4"
                         value={shakeIntensitySetting}
                         onChange={(e) => setShakeIntensitySetting(Number(e.target.value))}
-                        className="w-full h-1 bg-zinc-950 rounded border border-zinc-900 appearance-none cursor-pointer accent-amber-500 hover:accent-amber-400 transition"
+                        className={`w-full h-1 bg-zinc-950 rounded border border-zinc-900 appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:transition-all [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:transition-all ${
+                          neonThemeColor === 'purple' 
+                            ? '[&::-webkit-slider-thumb]:bg-purple-400 [&::-moz-range-thumb]:bg-purple-400 [&::-webkit-slider-thumb]:shadow-[0_0_8px_#c084fc] [&::-moz-range-thumb]:shadow-[0_0_8px_#c084fc]' 
+                            : neonThemeColor === 'green' 
+                            ? '[&::-webkit-slider-thumb]:bg-emerald-400 [&::-moz-range-thumb]:bg-emerald-400 [&::-webkit-slider-thumb]:shadow-[0_0_8px_#34d399] [&::-moz-range-thumb]:shadow-[0_0_8px_#34d399]' 
+                            : neonThemeColor === 'pink' 
+                            ? '[&::-webkit-slider-thumb]:bg-rose-400 [&::-moz-range-thumb]:bg-rose-400 [&::-webkit-slider-thumb]:shadow-[0_0_8px_#fb7185] [&::-moz-range-thumb]:shadow-[0_0_8px_#fb7185]' 
+                            : '[&::-webkit-slider-thumb]:bg-cyan-400 [&::-moz-range-thumb]:bg-cyan-400 [&::-webkit-slider-thumb]:shadow-[0_0_8px_#22d3ee] [&::-moz-range-thumb]:shadow-[0_0_8px_#22d3ee]'
+                        }`}
                       />
+                    </div>
+
+                    {/* Dynamic Audio Mix Toggle */}
+                    <div className="flex justify-between items-center border-t border-zinc-900 pt-1.5">
+                      <span className="text-zinc-500 font-bold text-[8px] uppercase">DYNAMIC AUDIO MIX:</span>
+                      <button
+                        type="button"
+                        onClick={() => setDynamicAudioMix(prev => !prev)}
+                        className={`px-2 py-0.5 rounded text-[8px] uppercase font-mono font-bold transition cursor-pointer border ${
+                          dynamicAudioMix
+                            ? neonThemeColor === 'purple'
+                              ? 'border-purple-500 bg-purple-950/20 text-purple-400'
+                              : neonThemeColor === 'green'
+                              ? 'border-emerald-500 bg-emerald-950/20 text-emerald-400'
+                              : neonThemeColor === 'pink'
+                              ? 'border-rose-500 bg-rose-950/20 text-rose-400'
+                              : 'border-cyan-500 bg-cyan-950/20 text-cyan-400'
+                            : 'border-zinc-800 text-zinc-550 bg-zinc-950/10'
+                        }`}
+                      >
+                        {dynamicAudioMix ? 'ON (ACTIVE)' : 'OFF (STATIC)'}
+                      </button>
                     </div>
 
                     {/* Colorblindness filter option */}
@@ -2260,6 +2329,8 @@ export default function App() {
           neonThemeColor={neonThemeColor}
           streak={stats.streak}
           wpm={stats.wpm}
+          performancePreset={performancePreset}
+          isLowBattery={isLowBattery}
         />
 
       </div>

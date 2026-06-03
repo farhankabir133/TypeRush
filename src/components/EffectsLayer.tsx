@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Particle } from '../types';
 
 export interface EffectsLayerRef {
@@ -18,10 +18,11 @@ interface EffectsLayerProps {
   streak: number;
   wpm: number;
   performancePreset?: 'performance' | 'efficiency';
+  isLowBattery?: boolean;
 }
 
 export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
-  ({ neonThemeColor, streak, wpm, performancePreset = 'performance' }, ref) => {
+  ({ neonThemeColor, streak, wpm, performancePreset = 'performance', isLowBattery: propIsLowBattery }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const particlesRef = useRef<Particle[]>([]);
     
@@ -36,7 +37,29 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
     const glitchTimerRef = useRef<number>(0);
     const shieldStrikeAlphaRef = useRef<number>(0);
 
-    const isEfficiency = performancePreset === 'efficiency';
+    // Local battery status tracking fallback
+    const [localIsLowBattery, setLocalIsLowBattery] = useState<boolean>(false);
+
+    useEffect(() => {
+      if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && 'getBattery' in navigator) {
+        (navigator as any).getBattery().then((battery: any) => {
+          const checkBatteryStatus = () => {
+            const isLow = battery.level <= 0.20 && !battery.charging;
+            setLocalIsLowBattery(isLow);
+          };
+          checkBatteryStatus();
+          battery.addEventListener('levelchange', checkBatteryStatus);
+          battery.addEventListener('chargingchange', checkBatteryStatus);
+          return () => {
+            battery.removeEventListener('levelchange', checkBatteryStatus);
+            battery.removeEventListener('chargingchange', checkBatteryStatus);
+          };
+        }).catch(() => {});
+      }
+    }, []);
+
+    const isLowBattery = propIsLowBattery !== undefined ? propIsLowBattery : localIsLowBattery;
+    const isPowerSaver = performancePreset === 'efficiency' || isLowBattery;
 
     // Get color hex values based on theme color name
     const getThemeHexColor = (name: string = neonThemeColor) => {
@@ -60,8 +83,8 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
         // Spawn beautiful letter/spark particles
         const wordLetters = word.split('');
         
-        // 1. Individual letter chunks that zoom out (capped on efficiency)
-        const activeLetters = isEfficiency ? wordLetters.slice(0, 4) : wordLetters;
+        // 1. Individual letter chunks that zoom out (disabled completely on Power Saver)
+        const activeLetters = isPowerSaver ? [] : wordLetters;
         activeLetters.forEach((char, idx) => {
           const angle = (idx / activeLetters.length) * Math.PI * 2 + (Math.random() - 0.5);
           const velocity = 2 + Math.random() * 4;
@@ -80,8 +103,8 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
           });
         });
 
-        // 2. High-speed sparkling dust particles
-        const dustCount = isEfficiency ? 4 : 15;
+        // 2. High-speed sparkling dust particles (disabled completely on Power Saver)
+        const dustCount = isPowerSaver ? 0 : 15;
         for (let i = 0; i < dustCount; i++) {
           const angle = Math.random() * Math.PI * 2;
           const velocity = 3 + Math.random() * 6;
@@ -136,8 +159,9 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
         observer.observe(canvas.parentElement);
       }
 
-      // Initialize ambient space dust embers (scales with current WPM and streak)
-      const maxEmbers = isEfficiency ? 8 : 40;
+      // Initialize ambient space dust embers (cleared and configured dynamically based on Power Saver status)
+      embersRef.current = [];
+      const maxEmbers = isPowerSaver ? 0 : 40;
       for (let i = 0; i < maxEmbers; i++) {
         embersRef.current.push({
           x: Math.random() * window.innerWidth,
@@ -156,10 +180,9 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 1. Draw Adaptive Cinematic Space Atmosphere Background Reaction
-        // High WPM/streak makes background glow softly based on active theme
+        // 1. Draw Adaptive Cinematic Space Atmosphere Background Reaction (disabled on Power Saver)
         const activeHex = getThemeHexColor();
-        if (streak > 5) {
+        if (streak > 5 && !isPowerSaver) {
           const radialGlow = ctx.createRadialGradient(
             canvas.width / 2, canvas.height / 2, 50,
             canvas.width / 2, canvas.height / 2, canvas.width
@@ -173,20 +196,22 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
         }
 
         // 2. Space Dust / Atmospheric Embers - Flow speed varies with performance!
-        const performanceMultiplier = Math.min(4, 1 + streak * 0.1 + (wpm / 50));
-        embersRef.current.forEach(ember => {
-          ember.y += ember.speedY * performanceMultiplier;
-          if (ember.y < 0) {
-            ember.y = canvas.height;
-            ember.x = Math.random() * canvas.width;
-          }
-          ctx.fillStyle = `rgba(255, 255, 255, ${ember.alpha * (0.6 + streak * 0.01)})`;
-          ctx.beginPath();
-          ctx.arc(ember.x, ember.y, ember.size * (1 + streak * 0.02), 0, Math.PI * 2);
-          ctx.fill();
-        });
+        if (!isPowerSaver) {
+          const performanceMultiplier = Math.min(4, 1 + streak * 0.1 + (wpm / 50));
+          embersRef.current.forEach(ember => {
+            ember.y += ember.speedY * performanceMultiplier;
+            if (ember.y < 0) {
+              ember.y = canvas.height;
+              ember.x = Math.random() * canvas.width;
+            }
+            ctx.fillStyle = `rgba(255, 255, 255, ${ember.alpha * (0.6 + streak * 0.01)})`;
+            ctx.beginPath();
+            ctx.arc(ember.x, ember.y, ember.size * (1 + streak * 0.02), 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
 
-        // 3. Render Particles
+        // 3. Render Particles (No expensive shadowBlurs on Power Saver)
         particlesRef.current.forEach((p, idx) => {
           p.x += p.vx;
           p.y += p.vy;
@@ -205,14 +230,18 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
             // Text particle
             ctx.fillStyle = p.color;
             ctx.font = `bold ${p.size}px monospace`;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = p.color;
+            if (!isPowerSaver) {
+              ctx.shadowBlur = 10;
+              ctx.shadowColor = p.color;
+            }
             ctx.fillText(customChar, p.x, p.y);
           } else {
             // Shiny dust particle
             ctx.fillStyle = p.color;
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = p.color;
+            if (!isPowerSaver) {
+              ctx.shadowBlur = 8;
+              ctx.shadowColor = p.color;
+            }
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fill();
@@ -285,7 +314,7 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
         cancelAnimationFrame(animationId);
         observer.disconnect();
       };
-    }, [neonThemeColor, streak, wpm]);
+    }, [neonThemeColor, streak, wpm, isPowerSaver]);
 
     return (
       <canvas

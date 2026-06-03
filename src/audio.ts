@@ -17,6 +17,8 @@ class AudioEngine {
   private coreWpm: number = 0;
   private dangerProximity: number = 0; // 0 (safe) to 1 (near damage)
   private beatCounter: number = 0;
+  private isOverdrive: boolean = false;
+  private dynamicAudioMix: boolean = true;
 
   constructor() {
     // Lazy initialized on user gesture
@@ -74,9 +76,11 @@ class AudioEngine {
   }
 
   // Speed factor reflects WPM: higher WPM or faster streak slightly raises ambient pitching & speed pulse
-  updateAmbientDrone(streak: number, wpm: number, isOverdrive: boolean = false) {
+  updateAmbientDrone(streak: number, wpm: number, isOverdrive: boolean = false, dynamicAudioMix: boolean = true) {
     this.coreWpm = wpm;
     this.coreStreak = streak;
+    this.isOverdrive = isOverdrive;
+    this.dynamicAudioMix = dynamicAudioMix;
     if (!this.ctx || !this.ambientOsc || !this.ambientGain || this.isMuted) return;
 
     const baseFreq = isOverdrive ? 82.41 : 55; // Raise base drone pitch on overdrive for auditory feedback
@@ -86,8 +90,21 @@ class AudioEngine {
 
     this.ambientOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.5);
 
-    // Warm brightness scales slightly with performance
-    const targetGain = Math.min(0.24, 0.08 + streak * 0.004 + (isOverdrive ? 0.08 : 0));
+    // Warm brightness scales slightly with performance, or auto-modulates in dynamic audio mix mode
+    let targetGain = Math.min(0.24, 0.08 + streak * 0.004 + (isOverdrive ? 0.08 : 0));
+
+    if (this.dynamicAudioMix) {
+      // Scale intensity based on words-per-minute speed and streak combo
+      const intensity = Math.min(1.0, (wpm / 130) + (streak / 25));
+      if (isOverdrive) {
+        // Reduce low-frequency drone tracks heavily to make space for high-octave synthesizer overlays
+        targetGain = 0.02;
+      } else {
+        // High gameplay intensity dynamically lifts sub music context, low velocity pulls it down
+        targetGain = 0.04 + intensity * 0.16;
+      }
+    }
+
     this.ambientGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.3);
 
     // Dynamic tempo adjustment based on velocity
@@ -177,8 +194,8 @@ class AudioEngine {
 
     // --- Dynamic Instrument Stems depending on combo streak level ---
 
-    // Stem 1: Crystalline hi-hat tick (plays every beat once streak >= 5)
-    if (this.coreStreak >= 5) {
+    // Stem 1: Crystalline hi-hat tick (plays every beat once streak >= 5, or always in overdrive)
+    if (this.coreStreak >= 5 || this.isOverdrive) {
       const noiseOsc = this.ctx.createOscillator();
       const noiseGain = this.ctx.createGain();
       const hpf = this.ctx.createBiquadFilter();
@@ -189,8 +206,11 @@ class AudioEngine {
       hpf.type = 'highpass';
       hpf.frequency.setValueAtTime(8000, now);
 
-      // Delicate tick volume
-      const tickVolume = Math.min(0.04, 0.01 + (this.coreStreak * 0.001));
+      // Delicate tick volume - amplify if overdrive is active
+      let tickVolume = Math.min(0.04, 0.01 + (this.coreStreak * 0.001));
+      if (this.isOverdrive) {
+        tickVolume = this.dynamicAudioMix ? 0.12 : 0.07;
+      }
       noiseGain.gain.setValueAtTime(tickVolume, now);
       noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
 
@@ -202,17 +222,19 @@ class AudioEngine {
       noiseOsc.stop(now + 0.03);
     }
 
-    // Stem 2: Crystalline melodic plucks / arpeggios (plays every beat once streak >= 12)
-    if (this.coreStreak >= 12) {
+    // Stem 2: Crystalline melodic plucks / arpeggios (plays every beat once streak >= 12, or always in overdrive)
+    if (this.coreStreak >= 12 || this.isOverdrive) {
       const pluckOsc = this.ctx.createOscillator();
       const pluckGain = this.ctx.createGain();
       const pluckFilter = this.ctx.createBiquadFilter();
 
       pluckOsc.type = 'sine';
 
-      // Map chord melodies dynamically in scale of A-minor
-      const aminorChord = [440, 523.25, 659.25, 783.99, 880, 1046.50];
-      const selectedIndex = (this.beatCounter + Math.floor(this.coreStreak / 4)) % aminorChord.length;
+      // Map chord melodies dynamically in scale of A-minor (utilize higher octane chords on Overdrive)
+      const aminorChord = this.isOverdrive 
+        ? [523.25, 659.25, 783.99, 880, 1046.50, 1318.51] 
+        : [440, 523.25, 659.25, 783.99, 880, 1046.50];
+      const selectedIndex = (this.beatCounter + Math.floor(Math.max(this.coreStreak, 15) / 4)) % aminorChord.length;
       const freq = aminorChord[selectedIndex];
 
       pluckOsc.frequency.setValueAtTime(freq, now);
@@ -222,7 +244,11 @@ class AudioEngine {
       pluckFilter.frequency.setValueAtTime(1200, now);
       pluckFilter.Q.setValueAtTime(1.5, now);
 
-      const pluckValValue = Math.min(0.08, 0.02 + ((this.coreStreak - 12) * 0.002));
+      // Amplified high-frequency stem when Heatwave overdrive is active
+      let pluckValValue = Math.min(0.08, 0.02 + ((this.coreStreak - 12) * 0.002));
+      if (this.isOverdrive) {
+        pluckValValue = this.dynamicAudioMix ? 0.20 : 0.12;
+      }
       pluckGain.gain.setValueAtTime(pluckValValue, now);
       pluckGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
@@ -232,6 +258,33 @@ class AudioEngine {
 
       pluckOsc.start(now);
       pluckOsc.stop(now + 0.25);
+    }
+
+    // Stem 3 (New): Overdrive active high-frequency cinematic sweeps
+    if (this.isOverdrive) {
+      const sweepOsc = this.ctx.createOscillator();
+      const sweepGain = this.ctx.createGain();
+      const bpf = this.ctx.createBiquadFilter();
+
+      sweepOsc.type = 'sawtooth';
+      const sweepBase = 1600 + (this.beatCounter % 4) * 400;
+      sweepOsc.frequency.setValueAtTime(sweepBase, now);
+      sweepOsc.frequency.exponentialRampToValueAtTime(sweepBase * 2.5, now + 0.15);
+
+      bpf.type = 'bandpass';
+      bpf.frequency.setValueAtTime(3200, now);
+      bpf.Q.setValueAtTime(3.5, now);
+
+      const sweepVolume = this.dynamicAudioMix ? 0.08 : 0.04;
+      sweepGain.gain.setValueAtTime(sweepVolume, now);
+      sweepGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+      sweepOsc.connect(bpf);
+      bpf.connect(sweepGain);
+      sweepGain.connect(this.primaryGain!);
+
+      sweepOsc.start(now);
+      sweepOsc.stop(now + 0.16);
     }
   }
 
