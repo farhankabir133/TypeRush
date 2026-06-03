@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "UserDiagnostic": {
+      "title": "UserDiagnostic",
+      "description": "Historic telemetry results representing a typing game run performance.",
+      "type": "object",
+      "properties": {
+        "wpm": { "type": "number", "description": "Normalized Words Per Minute achieved in this run." },
+        "accuracy": { "type": "number", "description": "Typing accuracy percentage [0, 100]." },
+        "score": { "type": "integer", "description": "The final aggregate score achieved." },
+        "maxStreak": { "type": "integer", "description": "The maximum consecutive accurate typing streak." },
+        "category": { "type": "string", "description": "Word pack category or theme prompt chosen." },
+        "difficulty": { "type": "string", "description": "The game difficulty level." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "ISO timestamp indicating when the run completed." }
+      },
+      "required": ["wpm", "accuracy", "score", "maxStreak", "category", "difficulty", "timestamp"]
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "System-wide persistent configuration options.",
+      "type": "object",
+      "properties": {
+        "caseInsensitive": { "type": "boolean", "description": "Toggles literal matching casing requirements." },
+        "neonThemeColor": { "type": "string", "description": "Visual neon accent color chosen by user." },
+        "isMuted": { "type": "boolean", "description": "Audio system status." },
+        "focusMode": { "type": "boolean", "description": "Toggle minimal layout view." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp of settings save." }
+      },
+      "required": ["caseInsensitive", "neonThemeColor", "isMuted", "focusMode", "updatedAt"]
+    },
+    "MatchRoom": {
+      "title": "MatchRoom",
+      "description": "Real-time state synchronization container for high-speed PvP/Co-op Typing Duels.",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "hostName": { "type": "string" },
+        "hostWpm": { "type": "number" },
+        "hostStreak": { "type": "integer" },
+        "hostShieldHealth": { "type": "number" },
+        "hostGlitch": { "type": "string", "description": "Active glitch payload to deliver to client." },
+        "guestId": { "type": "string" },
+        "guestName": { "type": "string" },
+        "guestWpm": { "type": "number" },
+        "guestStreak": { "type": "integer" },
+        "guestShieldHealth": { "type": "number" },
+        "guestGlitch": { "type": "string" },
+        "status": { "type": "string", "enum": ["waiting", "active", "ended"] },
+        "gameMode": { "type": "string", "enum": ["duel", "co-op"] },
+        "selectedLexicon": { "type": "string", "description": "Stringified array of synthesized dictionary words to synchronize." },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["roomId", "hostId", "hostName", "status", "gameMode", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/diagnostics/{runId}": {
+      "schema": "UserDiagnostic",
+      "description": "Granular historic list of performance analytics."
+    },
+    "/users/{userId}/settings/controls": {
+      "schema": "UserSettings",
+      "description": "Persistent personalized dashboard settings."
+    },
+    "/matchrooms/{roomId}": {
+      "schema": "MatchRoom",
+      "description": "Coordinated duel and cooperative network game lobby nodes."
+    }
+  }
+}

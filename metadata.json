@@ -1,0 +1,6 @@
+{
+  "name": "TypeRush",
+  "description": "An atmospheric, immersive typing survival game with real-time sound synthesis, particle effects, and adaptive visual themes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
