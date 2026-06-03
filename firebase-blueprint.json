@@ -28,6 +28,19 @@
       },
       "required": ["caseInsensitive", "neonThemeColor", "isMuted", "focusMode", "updatedAt"]
     },
+    "UserLexicon": {
+      "title": "UserLexicon",
+      "description": "Individual dictionary pack synthesized via generative prompt loops.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "words": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "words", "createdAt"]
+    },
     "MatchRoom": {
       "title": "MatchRoom",
       "description": "Real-time state synchronization container for high-speed PvP/Co-op Typing Duels.",
@@ -63,6 +76,10 @@
     "/users/{userId}/settings/controls": {
       "schema": "UserSettings",
       "description": "Persistent personalized dashboard settings."
+    },
+    "/users/{userId}/lexicons/{lexiconId}": {
+      "schema": "UserLexicon",
+      "description": "User saved and synthesized Gemini dictionary vocabulary packs."
     },
     "/matchrooms/{roomId}": {
       "schema": "MatchRoom",

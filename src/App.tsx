@@ -12,6 +12,7 @@ import { WordEntity } from './components/WordEntity';
 import { EffectsLayer, EffectsLayerRef } from './components/EffectsLayer';
 import { EndScreen } from './components/EndScreen';
 import { TouchKeyboard } from './components/TouchKeyboard';
+import { MusicVisualizer } from './components/MusicVisualizer';
 
 // Lucide icon integrations
 import { 
@@ -59,6 +60,31 @@ export default function App() {
   const [chargeProgress, setChargeProgress] = useState<number>(0);
   const [chargingWordId, setChargingWordId] = useState<string | null>(null);
   const [chargeCooldown, setChargeCooldown] = useState<number>(0);
+
+  // --- New Feature States ---
+  const [shakeIntensitySetting, setShakeIntensitySetting] = useState<number>(2); // 0=Off, 1=Low, 2=Medium, 3=High, 4=Extreme
+  const [perfectWordsStreak, setPerfectWordsStreak] = useState<number>(0);
+  const [overdriveActive, setOverdriveActive] = useState<boolean>(false);
+  const [overdriveTimeLeft, setOverdriveTimeLeft] = useState<number>(0);
+  const [savedLexicons, setSavedLexicons] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    words: { word: string; overlay: string; tier: string }[];
+    createdAt: string;
+  }[]>([]);
+  const [lexiconStatusMsg, setLexiconStatusMsg] = useState<string>('');
+
+  const overdriveActiveRef = useRef<boolean>(false);
+  const shakeIntensitySettingRef = useRef<number>(2);
+  
+  useEffect(() => {
+    overdriveActiveRef.current = overdriveActive;
+  }, [overdriveActive]);
+
+  useEffect(() => {
+    shakeIntensitySettingRef.current = shakeIntensitySetting;
+  }, [shakeIntensitySetting]);
   
   // Simulation values (Combat Shield + Active Tracking refs)
   const [shieldHealth, setShieldHealth] = useState<number>(100);
@@ -143,9 +169,11 @@ export default function App() {
       if (user) {
         // Load settings and diagnostic results from Cloud DB
         loadCloudHistory(user.uid);
+        loadSavedLexicons(user.uid);
       } else {
         // Fallback to local highscore
         setLocalHistory([]);
+        setSavedLexicons([]);
       }
     });
     return () => unsubscribe();
@@ -198,6 +226,62 @@ export default function App() {
       setLocalHistory(items);
     } catch (err) {
       console.warn('Cloud leaderboard loading limited or bypassed:', err);
+    }
+  };
+
+  const loadSavedLexicons = async (uid: string) => {
+    try {
+      const q = query(
+        collection(db, `users/${uid}/lexicons`),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      const items: any[] = [];
+      snapshot.forEach(doc => {
+        items.push(doc.data());
+      });
+      setSavedLexicons(items);
+    } catch (err) {
+      console.warn('Could not load custom lexicons:', err);
+    }
+  };
+
+  const saveCurrentLexicon = async () => {
+    if (!currentUser) {
+      setLexiconStatusMsg('SYNC REQUIRED TO SAVE THEMES.');
+      return;
+    }
+    if (!synthesizedTheme) {
+      setLexiconStatusMsg('NO GENERATED THEME ACTIVE.');
+      return;
+    }
+    const lexiconId = 'lex_' + Date.now();
+    const payload = {
+      id: lexiconId,
+      name: synthesizedTheme.name,
+      description: synthesizedTheme.description || 'Custom generated theme portfolio.',
+      words: synthesizedTheme.words,
+      createdAt: new Date().toISOString()
+    };
+    try {
+      await setDoc(doc(db, `users/${currentUser.uid}/lexicons`, lexiconId), payload);
+      setLexiconStatusMsg('THEME SAVED TO CLOUD PORTFOLIO.');
+      loadSavedLexicons(currentUser.uid);
+    } catch (err: any) {
+      setLexiconStatusMsg('SAVE CONDUIT SECURITY BLOCK OR ERROR.');
+      console.error(err);
+    }
+  };
+
+  const deleteSavedLexicon = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await deleteDoc(doc(db, `users/${currentUser.uid}/lexicons`, id));
+      setLexiconStatusMsg('THEME REMOVED FROM CLOUD.');
+      loadSavedLexicons(currentUser.uid);
+    } catch (err: any) {
+      setLexiconStatusMsg('DELETE CONDUIT ERROR.');
+      console.error(err);
     }
   };
 
@@ -593,6 +677,17 @@ export default function App() {
       const deltaSeconds = (now - lastTick) / 1000;
       lastTick = now;
 
+      // Overdrive timer decay sequence
+      if (overdriveActiveRef.current) {
+        setOverdriveTimeLeft(prev => {
+          const next = Math.max(0, prev - deltaSeconds);
+          if (next <= 0) {
+            setOverdriveActive(false);
+          }
+          return next;
+        });
+      }
+
       // Handle Cloaked flashing intermittently
       cloakingTimer += deltaSeconds;
       const isStealthTick = Math.sin(cloakingTimer * 4) > 0;
@@ -624,8 +719,9 @@ export default function App() {
         const nextWords: Word[] = [];
 
         prevWords.forEach(word => {
-          // Calculate movement increment based on exact delta-seconds
-          const movement = word.speed * deltaSeconds;
+          // Calculate movement increment based on exact delta-seconds (Slowed by 50% while in overdrive)
+          const speedFactor = overdriveActiveRef.current ? 0.45 : 1.0;
+          const movement = word.speed * deltaSeconds * speedFactor;
           const nextY = word.y + movement;
 
           // Repair regenerative words if idle for more than 2s
@@ -645,6 +741,7 @@ export default function App() {
             }
             
             // Strike statistics deduction
+            setPerfectWordsStreak(0); // Mismatch resets perfect words streak
             setStats(prev => ({
               ...prev,
               streak: 0,
@@ -672,10 +769,13 @@ export default function App() {
               effectsRef.current.triggerStreakBreakGlitch();
             }
 
-            // Screen shake triggering
-            shakeIntensityRef.current = 15;
-            setShakeActive(true);
-            setTimeout(() => setShakeActive(false), 350);
+            // Custom Dynamic Screen Shake triggering scaled by user settings
+            const shakeMult = shakeIntensitySettingRef.current;
+            if (shakeMult > 0) {
+              shakeIntensityRef.current = 6.5 * shakeMult; // Low=6.5, Med=13.0, High=19.5, Extreme=26.0
+              setShakeActive(true);
+              setTimeout(() => setShakeActive(false), 350);
+            }
 
           } else {
             nextWords.push({
@@ -708,8 +808,8 @@ export default function App() {
         const currentWpm = elapsedSec > 2 ? (correct / 5) / (elapsedSec / 60) : 0;
         const calculatedAcc = total > 0 ? (correct / total) * 100 : 0;
 
-        // Feedback sound context dynamics
-        gameAudio.updateAmbientDrone(prev.streak, currentWpm);
+        // Feedback sound context dynamics (altered pitch in overdrive)
+        gameAudio.updateAmbientDrone(prev.streak, currentWpm, overdriveActiveRef.current);
 
         return {
           ...prev,
@@ -929,6 +1029,27 @@ export default function App() {
 
          if (updatedTypedCount === activeWord.text.length) {
            // Complete elimination of target word!
+            if (activeWord?.isBoss) {
+              const bShakeSetting = shakeIntensitySettingRef.current;
+              if (bShakeSetting > 0) {
+                shakeIntensityRef.current = 8.0 * bShakeSetting;
+                setShakeActive(true);
+                setTimeout(() => setShakeActive(false), 300);
+              }
+            }
+            if (!overdriveActiveRef.current) {
+              setPerfectWordsStreak(p => {
+                const n = p + 1;
+                if (n >= 15) {
+                  setOverdriveActive(true);
+                  setOverdriveTimeLeft(10.0);
+                  gameAudio.playLevelUp();
+                  effectsRef.current?.triggerKeyFlash('pink');
+                  return 0;
+                }
+                return n;
+              });
+            }
            gameAudio.playSuccess();
            effectsRef.current?.spawnWordExplosion(
              activeWord.x,
@@ -987,6 +1108,7 @@ export default function App() {
 
       } else {
         // Strike mismatch glitch
+        setPerfectWordsStreak(0); // Perfect streak reset on mismatch!
         gameAudio.playGlitch();
         effectsRef.current?.triggerStreakBreakGlitch();
         setStats(prev => ({
@@ -1027,6 +1149,19 @@ export default function App() {
         }));
 
         // Special: single letter words cleared immediately
+        if (!overdriveActiveRef.current) {
+          setPerfectWordsStreak(p => {
+            const n = p + 1;
+            if (n >= 15) {
+              setOverdriveActive(true);
+              setOverdriveTimeLeft(10.0);
+              gameAudio.playLevelUp();
+              effectsRef.current?.triggerKeyFlash('pink');
+              return 0;
+            }
+            return n;
+          });
+        }
         if (targetedWord.text.length === 1) {
           gameAudio.playSuccess();
           effectsRef.current?.spawnWordExplosion(
@@ -1052,6 +1187,7 @@ export default function App() {
 
       } else {
         // Typed random key with no target locks (non-damaging high-pitch hum tick)
+        setPerfectWordsStreak(0); // Perfect streak reset!
         gameAudio.playKeypress(0.7);
         setStats(prev => ({
           ...prev,
@@ -1341,20 +1477,96 @@ export default function App() {
                   </form>
 
                   {synthesizedTheme && (
-                    <div className="mt-2.5 p-2 bg-emerald-950/10 border border-emerald-500/20 rounded-lg flex justify-between items-center font-mono">
-                      <div className="text-left">
-                        <span className="block text-[8px] font-bold text-emerald-500 uppercase tracking-widest">SYNTH_CORE ACTIVE IP:</span>
-                        <span className="block text-xs font-semibold text-zinc-300">{synthesizedTheme.name}</span>
+                    <div className="mt-2.5 p-2 bg-emerald-950/10 border border-emerald-500/20 rounded-lg flex flex-col gap-2 font-mono">
+                      <div className="flex justify-between items-center">
+                        <div className="text-left">
+                          <span className="block text-[8px] font-bold text-emerald-500 uppercase tracking-widest">SYNTH_CORE ACTIVE IP:</span>
+                          <span className="block text-xs font-semibold text-zinc-300">{synthesizedTheme.name}</span>
+                        </div>
+                        <button 
+                          onClick={clearSynthesizedTheme}
+                          className="px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[8px] text-zinc-400 hover:text-red-400 transition cursor-pointer"
+                        >
+                          [WIPE]
+                        </button>
                       </div>
-                      <button 
-                        onClick={clearSynthesizedTheme}
-                        className="px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[8px] text-zinc-400 hover:text-red-400 transition cursor-pointer"
-                      >
-                        [WIPE]
-                      </button>
+                      
+                      {currentUser ? (
+                        <div className="flex flex-col gap-1.5 mt-1 border-t border-emerald-950/40 pt-1.5">
+                          <button
+                            type="button"
+                            onClick={saveCurrentLexicon}
+                            className="w-full px-2 py-1 rounded bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-450 hover:to-teal-450 text-zinc-950 font-bold text-[8px] uppercase tracking-wider transition cursor-pointer shadow"
+                          >
+                            💾 SAVE THEME TO CLOUD PORTFOLIO
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="block text-[7px] text-zinc-500 text-center uppercase tracking-widest pt-1 mt-1 border-t border-emerald-950/30">
+                          SYNC PILOT ID IN LEADERBOARD CARD TO RETAIN SYNTHESIZED THEMES
+                        </span>
+                      )}
+                      {lexiconStatusMsg && (
+                        <span className="block text-[7.5px] text-amber-500 text-center uppercase tracking-wider font-bold animate-pulse mt-1">
+                          {lexiconStatusMsg}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
+
+                {/* Gemini Lexicon Cloud Portfolio Archive */}
+                {currentUser && (
+                  <div className="bg-[#070709]/75 border border-white/[0.03] rounded-2xl p-4 backdrop-blur-md font-mono text-left">
+                    <h2 className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase mb-2 flex items-center gap-1.5">
+                      <Sparkles size={12} className="text-purple-400 animate-pulse" /> CLOUD THEME LEXICON PORTFOLIO ({savedLexicons.length})
+                    </h2>
+                    {savedLexicons.length === 0 ? (
+                      <p className="text-[8.5px] text-zinc-550 leading-tight py-2.5 text-center uppercase border border-zinc-900/30 rounded bg-zinc-950/20">
+                        No saved portfolio themes. Generate a theme above and tap 'SAVE THEME TO CLOUD PORTFOLIO' to persist it here.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-[8px] text-zinc-500 mb-2.5 leading-tight uppercase">
+                          Click any secured theme from your cloud database to overwrite the active drift combat lexicon.
+                        </p>
+                        <div className="flex flex-col gap-1.5 max-h-[140px] overflow-y-auto pr-1">
+                          {savedLexicons.map(lex => (
+                            <div key={lex.id} className="p-2 border border-zinc-900/40 rounded bg-zinc-950/30 flex justify-between items-center transition hover:border-zinc-805">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSynthesizedTheme({
+                                    name: lex.name,
+                                    description: lex.description,
+                                    words: lex.words
+                                  });
+                                  setCategory('custom');
+                                  setLexiconStatusMsg(`THEME '${lex.name.toUpperCase()}' INSTALLED.`);
+                                }}
+                                className="flex-1 text-left cursor-pointer flex flex-col"
+                              >
+                                <span className="text-[10px] font-bold text-zinc-300 hover:text-purple-400 transition uppercase">
+                                  ▶ {lex.name}
+                                </span>
+                                <span className="text-[7.5px] text-zinc-500 line-clamp-1 mt-0.5">
+                                  {lex.description}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteSavedLexicon(lex.id)}
+                                className="ml-2 px-1.5 py-0.5 rounded border border-zinc-850 bg-zinc-950 text-[7px] text-zinc-550 hover:text-red-400 hover:border-red-900/50 transition cursor-pointer"
+                              >
+                                [DELETE]
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Matchmaking Mode Selector */}
                 <div className="bg-[#070709]/75 border border-white/[0.03] rounded-2xl p-4 backdrop-blur-md">
@@ -1667,6 +1879,24 @@ export default function App() {
                       </button>
                     </div>
 
+                    {/* Kinetic Impact Screen-Shake Slider */}
+                    <div className="flex flex-col gap-1 border-t border-zinc-900 pt-1.5 pb-1">
+                      <div className="flex justify-between items-center text-[8px]">
+                        <span className="text-zinc-500 font-bold">KINETIC COCKPIT IMPACT:</span>
+                        <span className="text-amber-500 font-bold">
+                          {['OFF', 'LIGHT', 'MEDIUM', 'HEAVY', 'SHOCKWAVE'][shakeIntensitySetting]}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="4"
+                        value={shakeIntensitySetting}
+                        onChange={(e) => setShakeIntensitySetting(Number(e.target.value))}
+                        className="w-full h-1 bg-zinc-950 rounded border border-zinc-900 appearance-none cursor-pointer accent-amber-500 hover:accent-amber-400 transition"
+                      />
+                    </div>
+
                     {/* Colorblindness filter option */}
                     <div className="flex justify-between items-center border-t border-zinc-900 pt-1.5">
                       <span className="text-zinc-500 font-bold">COLORBLIND CONTROLS:</span>
@@ -1888,6 +2118,9 @@ export default function App() {
             {/* Bottom active cockpit typing visual threshold boundary (Danger Line) */}
             <div className="relative border-t border-zinc-900/40 bg-[#070709]/85 backdrop-blur-md flex flex-col items-center justify-center px-4 py-3 z-30 transition-all">
               
+              {/* Overdrive Music Visualizer Sync Band */}
+              <MusicVisualizer themeColor={neonThemeColor} stats={stats} overdriveActive={overdriveActive} />
+              
               {/* Floating laser barrier (Shield barrier wall representation) */}
               <div className="absolute top-0 left-0 w-full h-[1px] flex justify-between items-center">
                 <div className={`w-full h-full opacity-20 bg-current ${getThemeTextClass()} animate-pulse`} />
@@ -1897,7 +2130,27 @@ export default function App() {
               </div>
 
               {/* Minimalist floating input prompt feedback */}
-              <div className="w-full max-w-md flex flex-col items-center gap-1.5">
+              <div className="w-full max-w-md flex flex-col items-center gap-2 mb-1.5 z-10 select-none pointer-events-none">
+                {/* Heatwave Overdrive Overdrive status indicator */}
+                <div className="w-full flex flex-col gap-1 px-1">
+                  <div className="flex justify-between w-full text-[7.5px] font-mono tracking-widest text-zinc-550 uppercase">
+                    <span className={overdriveActive ? 'text-orange-400 font-bold animate-pulse' : 'text-zinc-500'}>
+                      THERMAL MULTIPLIER: {overdriveActive ? '100% OVERDRIVE BURST' : `${Math.min(100, Math.floor((perfectWordsStreak / 15) * 100))}%`}
+                    </span>
+                    <span className={overdriveActive ? 'text-amber-400 animate-pulse font-bold' : 'text-zinc-500 font-bold'}>
+                      {overdriveActive ? `OVERDRIVE TIME: ${overdriveTimeLeft.toFixed(1)}s` : `${perfectWordsStreak} / 15 PERFECTS TRACKED`}
+                    </span>
+                  </div>
+                  <div className="w-full h-1 bg-zinc-950 border border-zinc-900 rounded-full overflow-hidden relative">
+                    <div 
+                      className={`h-full transition-all duration-300 ${overdriveActive ? 'bg-gradient-to-r from-red-600 via-orange-500 to-amber-300 animate-pulse' : 'bg-amber-400'}`}
+                      style={{ 
+                        width: overdriveActive ? `${(overdriveTimeLeft / 10) * 100}%` : `${(perfectWordsStreak / 15) * 100}%`,
+                        boxShadow: '0 0 5px currentColor'
+                      }}
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center gap-1.5 text-[8px] text-zinc-500 font-mono tracking-widest uppercase">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> TERRESTRIAL COGNITIVE LINK
                   {activeWordId && (

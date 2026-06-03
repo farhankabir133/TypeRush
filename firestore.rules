@@ -40,6 +40,16 @@ service cloud.firestore {
         && data.updatedAt is string;
     }
 
+    function isValidUserLexicon(data) {
+      return data.keys().hasAll(['id', 'name', 'description', 'words', 'createdAt'])
+        && data.keys().size() == 5
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 100
+        && data.description is string && data.description.size() <= 300
+        && data.words is list && data.words.size() <= 120
+        && data.createdAt is string;
+    }
+
     function isValidMatchRoom(data) {
       return data.keys().hasAll(['roomId', 'hostId', 'hostName', 'status', 'gameMode', 'createdAt', 'updatedAt'])
         && data.roomId is string && data.roomId.size() <= 128
@@ -66,6 +76,11 @@ service cloud.firestore {
       match /settings/{controlsId} {
         allow read: if isSignedIn() && userId == request.auth.uid;
         allow write: if isSignedIn() && userId == request.auth.uid && isValidId(controlsId) && isValidUserSettings(request.resource.data);
+      }
+
+      match /lexicons/{lexiconId} {
+        allow read, write: if isSignedIn() && userId == request.auth.uid && isValidId(lexiconId) && isValidUserLexicon(request.resource.data);
+        allow delete: if isSignedIn() && userId == request.auth.uid && isValidId(lexiconId);
       }
     }
 

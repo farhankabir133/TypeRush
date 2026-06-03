@@ -74,20 +74,20 @@ class AudioEngine {
   }
 
   // Speed factor reflects WPM: higher WPM or faster streak slightly raises ambient pitching & speed pulse
-  updateAmbientDrone(streak: number, wpm: number) {
+  updateAmbientDrone(streak: number, wpm: number, isOverdrive: boolean = false) {
     this.coreWpm = wpm;
     this.coreStreak = streak;
     if (!this.ctx || !this.ambientOsc || !this.ambientGain || this.isMuted) return;
 
-    const baseFreq = 55; // Low A
+    const baseFreq = isOverdrive ? 82.41 : 55; // Raise base drone pitch on overdrive for auditory feedback
     // Cap at double frequency for double atmosphere intensity
-    const multiplier = Math.min(2, 1 + streak * 0.05 + (wpm > 0 ? (wpm / 150) : 0));
+    const multiplier = Math.min(3, 1 + streak * 0.05 + (wpm > 0 ? (wpm / 110) : 0) + (isOverdrive ? 0.6 : 0));
     const targetFreq = baseFreq * multiplier;
 
     this.ambientOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.5);
 
     // Warm brightness scales slightly with performance
-    const targetGain = Math.min(0.2, 0.08 + streak * 0.004);
+    const targetGain = Math.min(0.24, 0.08 + streak * 0.004 + (isOverdrive ? 0.08 : 0));
     this.ambientGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.3);
 
     // Dynamic tempo adjustment based on velocity
