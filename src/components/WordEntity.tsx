@@ -10,9 +10,21 @@ interface WordEntityProps {
   word: Word;
   isActive: boolean; // Whether the player is currently typing this word
   neonThemeColor: string;
+  onClick?: () => void;
+  onSelectionStart?: () => void;
+  onSelectionEnd?: () => void;
+  chargingProgress?: number; // 0 to 100 if being charged
 }
 
-export const WordEntity: React.FC<WordEntityProps> = ({ word, isActive, neonThemeColor }) => {
+export const WordEntity: React.FC<WordEntityProps> = ({
+  word,
+  isActive,
+  neonThemeColor,
+  onClick,
+  onSelectionStart,
+  onSelectionEnd,
+  chargingProgress = 0,
+}) => {
   const getThemeTextClass = () => {
     switch (neonThemeColor) {
       case 'cyan': return 'text-cyan-400 glow-cyan';
@@ -65,8 +77,8 @@ export const WordEntity: React.FC<WordEntityProps> = ({ word, isActive, neonThem
   } else if (word.class === 'regenerative') {
     // Regenerative: styled with a warm orange repair overlay
     classBorder = isActive 
-      ? 'border-orange-500/75 bg-orange-950/20 text-orange-400'
-      : 'border-orange-500/20 bg-orange-950/5 text-orange-400/80';
+       ? 'border-orange-500/75 bg-orange-950/20 text-orange-400'
+       : 'border-orange-500/20 bg-orange-950/5 text-orange-400/80';
     badgeLabel = '↺ REGEN';
   } else if (word.class === 'shield_charger') {
     // Shield Charger: glowing golden emerald capsule
@@ -79,6 +91,22 @@ export const WordEntity: React.FC<WordEntityProps> = ({ word, isActive, neonThem
     badgeLabel = '⚠️ BOSS UNIT';
   }
 
+  // Intercept events cleanly to prevent bubble issues
+  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    if (onSelectionStart) onSelectionStart();
+  };
+
+  const handleEnd = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    if (onSelectionEnd) onSelectionEnd();
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onClick) onClick();
+  };
+
   return (
     <div
       style={{
@@ -89,7 +117,12 @@ export const WordEntity: React.FC<WordEntityProps> = ({ word, isActive, neonThem
         opacity: opacityStyle,
         transition: 'top 0.05s linear, left 0.1s ease-out, opacity 0.3s ease-in-out',
       }}
-      className={`z-20 font-mono tracking-wider select-none pr-3 pl-3 py-1.5 rounded-md border text-sm transition-all duration-150
+      onMouseDown={handleStart}
+      onMouseUp={handleEnd}
+      onTouchStart={handleStart}
+      onTouchEnd={handleEnd}
+      onClick={handleClick}
+      className={`z-20 font-mono tracking-wider select-none pr-3 pl-3 py-1.5 rounded-md border text-sm transition-all duration-150 cursor-pointer active:scale-95
         ${isActive 
           ? `scale-110 z-30 ${getThemeBorderClass()} ${getThemeBgClass()} shadow-[0_0_15px_rgba(0,0,0,0.6)] font-semibold` 
           : isNearDanger
@@ -98,6 +131,16 @@ export const WordEntity: React.FC<WordEntityProps> = ({ word, isActive, neonThem
         }
       `}
     >
+      {/* Charge accumulation progress bar overlay */}
+      {chargingProgress > 0 && (
+        <div className="absolute inset-0 bg-amber-500/10 rounded-md overflow-hidden pointer-events-none">
+          <div 
+            style={{ width: `${chargingProgress}%` }} 
+            className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 opacity-30 transition-all duration-75"
+          />
+        </div>
+      )}
+
       {/* Tactical Badge Overlay */}
       {badgeLabel && (
         <span className="block text-[8px] font-sans font-bold tracking-widest text-center opacity-60 mb-0.5 leading-none">
@@ -138,3 +181,4 @@ export const WordEntity: React.FC<WordEntityProps> = ({ word, isActive, neonThem
     </div>
   );
 };
+

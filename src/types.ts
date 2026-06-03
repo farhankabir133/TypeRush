@@ -49,7 +49,7 @@ export interface Particle {
   decay: number;
 }
 
-export type GameMode = 'solo' | 'duel_vs_ai' | 'online_duel' | 'coop_containment';
+export type GameMode = 'solo' | 'duel_vs_ai' | 'online_duel' | 'coop_containment' | 'practice' | 'casual' | 'spectator' | 'challenge';
 
 export interface LeaderboardEntry {
   wpm: number;
@@ -58,4 +58,15 @@ export interface LeaderboardEntry {
   category: string;
   difficulty: string;
   timestamp: string;
+}
+
+export type InputMode = 'hybrid' | 'touch_keyboard' | 'assisted_tap' | 'native_mobile';
+
+export type PerformancePreset = 'performance' | 'efficiency';
+
+export interface AccessibilitySettings {
+  oneHanded: 'none' | 'left' | 'right';
+  largeText: boolean;
+  reducedMotion: boolean;
+  colorblindMode: 'none' | 'deuteranopia' | 'protanopia' | 'tritanopia';
 }

@@ -17,10 +17,11 @@ interface EffectsLayerProps {
   neonThemeColor: string;
   streak: number;
   wpm: number;
+  performancePreset?: 'performance' | 'efficiency';
 }
 
 export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
-  ({ neonThemeColor, streak, wpm }, ref) => {
+  ({ neonThemeColor, streak, wpm, performancePreset = 'performance' }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const particlesRef = useRef<Particle[]>([]);
     
@@ -34,6 +35,8 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
 
     const glitchTimerRef = useRef<number>(0);
     const shieldStrikeAlphaRef = useRef<number>(0);
+
+    const isEfficiency = performancePreset === 'efficiency';
 
     // Get color hex values based on theme color name
     const getThemeHexColor = (name: string = neonThemeColor) => {
@@ -57,9 +60,10 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
         // Spawn beautiful letter/spark particles
         const wordLetters = word.split('');
         
-        // 1. Individual letter chunks that zoom out
-        wordLetters.forEach((char, idx) => {
-          const angle = (idx / wordLetters.length) * Math.PI * 2 + (Math.random() - 0.5);
+        // 1. Individual letter chunks that zoom out (capped on efficiency)
+        const activeLetters = isEfficiency ? wordLetters.slice(0, 4) : wordLetters;
+        activeLetters.forEach((char, idx) => {
+          const angle = (idx / activeLetters.length) * Math.PI * 2 + (Math.random() - 0.5);
           const velocity = 2 + Math.random() * 4;
           particlesRef.current.push({
             id: `${Date.now()}-${idx}-${Math.random()}`,
@@ -77,7 +81,8 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
         });
 
         // 2. High-speed sparkling dust particles
-        for (let i = 0; i < 15; i++) {
+        const dustCount = isEfficiency ? 4 : 15;
+        for (let i = 0; i < dustCount; i++) {
           const angle = Math.random() * Math.PI * 2;
           const velocity = 3 + Math.random() * 6;
           particlesRef.current.push({
@@ -132,7 +137,7 @@ export const EffectsLayer = forwardRef<EffectsLayerRef, EffectsLayerProps>(
       }
 
       // Initialize ambient space dust embers (scales with current WPM and streak)
-      const maxEmbers = 40;
+      const maxEmbers = isEfficiency ? 8 : 40;
       for (let i = 0; i < maxEmbers; i++) {
         embersRef.current.push({
           x: Math.random() * window.innerWidth,

@@ -4,13 +4,14 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Word, GameStats, Difficulty, WordCategory, GameMode, LeaderboardEntry } from './types';
+import { Word, GameStats, Difficulty, WordCategory, GameMode, LeaderboardEntry, InputMode, PerformancePreset, AccessibilitySettings } from './types';
 import { gameAudio } from './audio';
 import { getRandomWord, WORD_BANKS } from './words';
 import { HUD } from './components/HUD';
 import { WordEntity } from './components/WordEntity';
 import { EffectsLayer, EffectsLayerRef } from './components/EffectsLayer';
 import { EndScreen } from './components/EndScreen';
+import { TouchKeyboard } from './components/TouchKeyboard';
 
 // Lucide icon integrations
 import { 
@@ -42,6 +43,22 @@ export default function App() {
 
   // Gameplay Mode Settings
   const [gameMode, setGameMode] = useState<GameMode>('solo');
+
+  // Mobile Adaptations & Performance Scaling States
+  const [inputMode, setInputMode] = useState<InputMode>('hybrid');
+  const [performancePreset, setPerformancePreset] = useState<PerformancePreset>('performance');
+  const [fpsPreset, setFpsPreset] = useState<30 | 60>(60);
+  const [accessibility, setAccessibility] = useState<AccessibilitySettings>({
+    oneHanded: 'none',
+    largeText: false,
+    reducedMotion: false,
+    colorblindMode: 'none',
+  });
+
+  // Kinetic Charging Laser Weapon states
+  const [chargeProgress, setChargeProgress] = useState<number>(0);
+  const [chargingWordId, setChargingWordId] = useState<string | null>(null);
+  const [chargeCooldown, setChargeCooldown] = useState<number>(0);
   
   // Simulation values (Combat Shield + Active Tracking refs)
   const [shieldHealth, setShieldHealth] = useState<number>(100);
@@ -191,17 +208,55 @@ export default function App() {
 
   // Map difficulty levels to configuration values
   const getDifficultySettings = useCallback((diff: Difficulty) => {
+    let multiplierSpeed = 1.0;
+    let multiplierInterval = 1.0;
+
+    // Apply mobile adaptations
+    const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobileDevice) {
+      multiplierSpeed = 0.65; // Slower movement on vertical screens
+      multiplierInterval = 1.35; // Fewer words spawned simultaneously
+    }
+
+    // Apply Mode-based modifiers
+    if (gameMode === 'practice') {
+      multiplierSpeed *= 0.55;
+      multiplierInterval *= 1.5;
+    } else if (gameMode === 'casual') {
+      multiplierSpeed *= 0.78;
+      multiplierInterval *= 1.2;
+    } else if (gameMode === 'challenge') {
+      multiplierSpeed *= 1.35;
+      multiplierInterval *= 0.72;
+    }
+
     switch (diff) {
       case 'easy':
-        return { spawnInterval: 3100, baseSpeed: 4.8, damage: 8 };
+        return { 
+          spawnInterval: Math.round(3100 * multiplierInterval), 
+          baseSpeed: 4.8 * multiplierSpeed, 
+          damage: gameMode === 'practice' ? 0 : 8 
+        };
       case 'medium':
-        return { spawnInterval: 2300, baseSpeed: 7.2, damage: 12 };
+        return { 
+          spawnInterval: Math.round(2300 * multiplierInterval), 
+          baseSpeed: 7.2 * multiplierSpeed, 
+          damage: gameMode === 'practice' ? 0 : 12 
+        };
       case 'hard':
-        return { spawnInterval: 1600, baseSpeed: 10.8, damage: 18 };
+        return { 
+          spawnInterval: Math.round(1600 * multiplierInterval), 
+          baseSpeed: 10.8 * multiplierSpeed, 
+          damage: gameMode === 'practice' ? 0 : 18 
+        };
       case 'chaos':
-        return { spawnInterval: 1050, baseSpeed: 13.5, damage: 24 };
+        return { 
+          spawnInterval: Math.round(1050 * multiplierInterval), 
+          baseSpeed: 13.5 * multiplierSpeed, 
+          damage: gameMode === 'practice' ? 0 : 24 
+        };
     }
-  }, []);
+  }, [gameMode]);
 
   // Sync references to prevent re-entering state mismatches during animation frames
   useEffect(() => {
@@ -747,15 +802,83 @@ export default function App() {
     }
   };
 
-  // Real-time tracking system for keystroke events
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Fast-bypass inputs on modifier keys or menus
+  // Autonomous Spectator Simulation + Hold-To-Charge Laser weapon loop
+  useEffect(() => {
     if (gameState !== 'playing') return;
-    if (e.key === 'Escape' || e.metaKey || e.ctrlKey || e.altKey) return;
 
-    // Filter valid typed characters (alphanumerics, syntax operators, etc)
-    const typedChar = e.key;
-    if (typedChar.length !== 1) return;
+    // A. Spec Autoplay tick
+    let specIntervalId: any = null;
+    if (gameMode === 'spectator') {
+      specIntervalId = setInterval(() => {
+        const currentWords = wordsRef.current;
+        const currentActiveId = activeWordIdRef.current;
+
+        if (currentActiveId) {
+          const activeWord = currentWords.find(w => w.id === currentActiveId);
+          if (activeWord) {
+            const nextExpectedChar = activeWord.text[activeWord.typedCharCount];
+            if (nextExpectedChar) {
+              processIncomingChar(nextExpectedChar);
+            }
+          }
+        } else {
+          if (currentWords.length > 0) {
+            // Pick lowest flying word boundary
+            const closestWord = [...currentWords].sort((a, b) => b.y - a.y)[0];
+            if (closestWord && closestWord.text.length > 0) {
+              processIncomingChar(closestWord.text[0]);
+            }
+          }
+        }
+      }, 260); // 260ms keystroke velocity (~45-55 WPM simulation)
+    }
+
+    // B. Hold-to-Charge weapon decay & fire updates
+    const weaponIntervalId = setInterval(() => {
+      if (chargingWordId) {
+        setChargeProgress(prev => {
+          if (prev >= 100) {
+            // BOOM! Nuclear target lock completed
+            const targetWord = wordsRef.current.find(w => w.id === chargingWordId);
+            if (targetWord) {
+              gameAudio.playSuccess();
+              effectsRef.current?.spawnWordExplosion(
+                targetWord.x,
+                targetWord.y,
+                targetWord.text,
+                'pink' // neon hyper burst
+              );
+              setWords(prevWords => prevWords.filter(w => w.id !== chargingWordId));
+              if (activeWordIdRef.current === chargingWordId) {
+                setActiveWordId(null);
+              }
+              setStats(pStats => ({
+                ...pStats,
+                score: pStats.score + (targetWord.text.length * 35), // Higher rewards
+                wordsTyped: pStats.wordsTyped + 1,
+              }));
+            }
+            setChargingWordId(null);
+            setChargeCooldown(100);
+            return 0;
+          }
+          return prev + 6; // Charge speed accumulation (~0.6s)
+        });
+      }
+
+      // Cool weapon system down slightly (takes 2 seconds to recover fully)
+      setChargeCooldown(prev => Math.max(0, prev - 2));
+    }, 40);
+
+    return () => {
+      if (specIntervalId) clearInterval(specIntervalId);
+      clearInterval(weaponIntervalId);
+    };
+  }, [gameState, gameMode, chargingWordId]);
+
+  // Unified process key character logic adaptable to physical keyboards and on-screen clicks
+  const processIncomingChar = useCallback((typedChar: string) => {
+    if (gameState !== 'playing') return;
 
     // Wake and initialize audio engine under explicit player permission gesture
     gameAudio.init();
@@ -937,6 +1060,19 @@ export default function App() {
       }
     }
   }, [gameState, caseInsensitive, neonThemeColor, stats.wpm, highScore, gameMode]);
+
+  // Real-time tracking system for keystroke events
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Fast-bypass inputs on modifier keys or menus
+    if (gameState !== 'playing') return;
+    if (e.key === 'Escape' || e.metaKey || e.ctrlKey || e.altKey) return;
+
+    // Filter valid typed characters (alphanumerics, syntax operators, etc)
+    const typedChar = e.key;
+    if (typedChar.length !== 1) return;
+
+    processIncomingChar(typedChar);
+  }, [gameState, processIncomingChar]);
 
   // Handle Payload Glitch trigger across Firestore or local AI
   const triggerGlitchToOpponent = () => {
@@ -1226,25 +1362,33 @@ export default function App() {
                     <Sword size={12} className={getThemeTextClass()} /> PLAY MODE DECISIONS
                   </h2>
 
-                  <div className="grid grid-cols-3 gap-2 font-mono text-[10px]">
-                    <button 
-                      onClick={() => { setGameMode('solo'); handleAbortMatchmaking(); }}
-                      className={`px-2 py-2 border rounded-lg text-center transition cursor-pointer ${gameMode === 'solo' ? getThemeBorderClass() + ' ' + getThemeBgClass() : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
-                    >
-                      ● SOLO
-                    </button>
-                    <button 
-                      onClick={() => { setGameMode('duel_vs_ai'); handleAbortMatchmaking(); }}
-                      className={`px-2 py-2 border rounded-lg text-center transition cursor-pointer ${gameMode === 'duel_vs_ai' ? getThemeBorderClass() + ' ' + getThemeBgClass() : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
-                    >
-                      ● VS AI BOT
-                    </button>
-                    <button 
-                      onClick={() => setGameMode('online_duel')}
-                      className={`px-2 py-2 border rounded-lg text-center transition cursor-pointer ${gameMode === 'online_duel' ? 'border-pink-500/50 bg-pink-950/15 text-pink-400 font-semibold shadow-[0_0_8px_rgba(244,63,94,0.1)]' : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
-                    >
-                      📡 NET PVP
-                    </button>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 font-mono text-[9px] text-left">
+                    {[
+                      { id: 'solo', label: '● SOLO STANDARD', desc: 'Survival metrics' },
+                      { id: 'duel_vs_ai', label: '● VS AI BOT', desc: 'Speed rival mismatch' },
+                      { id: 'online_duel', label: '📡 NET PVP', desc: 'Realtime firebase sync' },
+                      { id: 'practice', label: '📖 PRACTICE', desc: '50% slower, zero damage' },
+                      { id: 'casual', label: '🎮 CASUAL FLOW', desc: 'Tactile typing room' },
+                      { id: 'spectator', label: '👁️ SPECTATE', desc: 'Auto bot simulation' },
+                      { id: 'challenge', label: '⚡ OVERLOAD', desc: '135% hazardous run' },
+                    ].map(m => (
+                      <button 
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setGameMode(m.id as GameMode);
+                          if (m.id !== 'online_duel') handleAbortMatchmaking();
+                        }}
+                        className={`p-2 border rounded-lg transition cursor-pointer flex flex-col justify-between ${
+                          gameMode === m.id 
+                            ? `${getThemeBorderClass()} ${getThemeBgClass()} font-bold` 
+                            : 'border-zinc-805 bg-zinc-950/20 text-zinc-500 hover:text-zinc-400'
+                        }`}
+                      >
+                        <span className="font-bold block text-[8px] uppercase">{m.label}</span>
+                        <span className="text-[7px] text-zinc-650 block mt-0.5 leading-none">{m.desc}</span>
+                      </button>
+                    ))}
                   </div>
 
                   {gameMode === 'online_duel' && (
@@ -1408,6 +1552,156 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Mobile Adaptability & Adaptive Accessibility Commands */}
+                <div className="bg-[#070709]/75 border border-white/[0.03] rounded-2xl p-4 backdrop-blur-md text-left text-zinc-400 font-mono text-[10px]">
+                  <h2 className="font-mono text-[10px] text-zinc-400 font-bold tracking-wider uppercase mb-2.5 flex items-center gap-1.5 text-amber-500">
+                    <Radio size={12} className="animate-pulse" /> MOBILE COMMANDS & COGNITIVE ASSISTS
+                  </h2>
+
+                  <div className="flex flex-col gap-2.5">
+                    
+                    {/* Input Mode Selector */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 font-bold">INPUT METHOD:</span>
+                      <div className="flex gap-1 flex-wrap justify-end">
+                        {[
+                          { id: 'hybrid', label: 'Hybrid' },
+                          { id: 'touch_keyboard', label: 'On-Screen Keys' },
+                          { id: 'assisted_tap', label: 'Tap Assist' },
+                          { id: 'native_mobile', label: 'Native Input' }
+                        ].map(m => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setInputMode(m.id as InputMode)}
+                            className={`px-1.5 py-0.5 border rounded-[4px] text-[8px] uppercase transition cursor-pointer ${
+                              inputMode === m.id 
+                                ? `${getThemeBorderClass()} ${getThemeBgClass()} font-bold` 
+                                : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
+                            }`}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Performance Profile Preset */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 font-bold">PERFORMANCE:</span>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPerformancePreset('performance');
+                            setFpsPreset(60);
+                          }}
+                          className={`px-2 py-0.5 border rounded text-[8px] uppercase transition cursor-pointer ${
+                            performancePreset === 'performance' 
+                              ? 'border-emerald-500 bg-emerald-950/20 text-emerald-400 font-bold' 
+                              : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
+                          }`}
+                        >
+                          60FPS // SILKY SPEED
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPerformancePreset('efficiency');
+                            setFpsPreset(30);
+                          }}
+                          className={`px-2 py-0.5 border rounded text-[8px] uppercase transition cursor-pointer ${
+                            performancePreset === 'efficiency' 
+                              ? 'border-amber-500 bg-amber-950/20 text-amber-500 font-bold' 
+                              : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
+                          }`}
+                        >
+                          30FPS // BATTERY SAVER
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Ergonomic One-Handed Layout Shifting */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 font-bold">ONE-HAND SCALE:</span>
+                      <div className="flex gap-1">
+                        {[
+                          { id: 'none', label: 'FULL WIDTH' },
+                          { id: 'left', label: 'LEFT-SHIFT' },
+                          { id: 'right', label: 'RIGHT-SHIFT' }
+                        ].map(sh => (
+                          <button
+                            key={sh.id}
+                            type="button"
+                            onClick={() => setAccessibility(prev => ({ ...prev, oneHanded: sh.id as any }))}
+                            className={`px-1.5 py-0.5 border rounded-[4px] text-[8px] uppercase transition cursor-pointer ${
+                              accessibility.oneHanded === sh.id 
+                                ? 'border-purple-500 bg-purple-950/20 text-purple-400 font-bold' 
+                                : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
+                            }`}
+                          >
+                            {sh.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Visual Comfort: Large text, Reduced motion, Colorblindness */}
+                    <div className="grid grid-cols-2 gap-2 border-t border-zinc-900 pt-2 text-[8px] text-zinc-500">
+                      <button
+                        type="button"
+                        onClick={() => setAccessibility(prev => ({ ...prev, largeText: !prev.largeText }))}
+                        className="hover:text-zinc-400 cursor-pointer flex items-center gap-1"
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${accessibility.largeText ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
+                        <span>LARGE TYPOGRAPHY MODE</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAccessibility(prev => ({ ...prev, reducedMotion: !prev.reducedMotion }))}
+                        className="hover:text-zinc-400 cursor-pointer flex items-center gap-1"
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${accessibility.reducedMotion ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
+                        <span>REDUCED MOTION</span>
+                      </button>
+                    </div>
+
+                    {/* Colorblindness filter option */}
+                    <div className="flex justify-between items-center border-t border-zinc-900 pt-1.5">
+                      <span className="text-zinc-500 font-bold">COLORBLIND CONTROLS:</span>
+                      <div className="flex gap-1 flex-wrap justify-end">
+                        {[
+                          { id: 'none', label: 'standard' },
+                          { id: 'protanopia', label: 'protan' },
+                          { id: 'deuteranopia', label: 'deuter' },
+                          { id: 'tritanopia', label: 'tritan' }
+                        ].map(cb => (
+                          <button
+                            key={cb.id}
+                            type="button"
+                            onClick={() => {
+                              setAccessibility(prev => ({ ...prev, colorblindMode: cb.id as any }));
+                              if (cb.id === 'protanopia') setNeonThemeColor('pink');
+                              else if (cb.id === 'deuteranopia') setNeonThemeColor('purple');
+                              else if (cb.id === 'tritanopia') setNeonThemeColor('green');
+                              else setNeonThemeColor('cyan');
+                            }}
+                            className={`px-1 py-0.2 border rounded text-[7px] uppercase transition cursor-pointer ${
+                              accessibility.colorblindMode === cb.id 
+                                ? 'border-amber-500 bg-amber-950/15 text-amber-500' 
+                                : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'
+                            }`}
+                          >
+                            {cb.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
                 {/* Highly aesthetic compact diagnostic list & line graph */}
                 <div className="bg-[#070709]/75 border border-white/[0.03] rounded-2xl p-4 backdrop-blur-md text-left font-mono">
                   <h2 className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase mb-2 flex items-center gap-1.5">
@@ -1565,29 +1859,60 @@ export default function App() {
                   word={w}
                   isActive={activeWordId === w.id}
                   neonThemeColor={neonThemeColor}
+                  onClick={() => {
+                    setActiveWordId(w.id);
+                    if (inputMode === 'assisted_tap' || gameMode === 'casual') {
+                      const nextChar = w.text[w.typedCharCount];
+                      if (nextChar) {
+                        processIncomingChar(nextChar);
+                      }
+                    } else {
+                      gameAudio.playKeypress(1.3);
+                    }
+                  }}
+                  onSelectionStart={() => {
+                    if (chargeCooldown === 0) {
+                      setChargingWordId(w.id);
+                      setChargeProgress(0);
+                    }
+                  }}
+                  onSelectionEnd={() => {
+                    setChargingWordId(null);
+                    setChargeProgress(0);
+                  }}
+                  chargingProgress={chargingWordId === w.id ? chargeProgress : 0}
                 />
               ))}
             </div>
 
             {/* Bottom active cockpit typing visual threshold boundary (Danger Line) */}
-            <div className="relative h-28 border-t border-zinc-900/40 bg-zinc-950/50 backdrop-blur-md flex flex-col items-center justify-center px-4 py-3 z-30">
+            <div className="relative border-t border-zinc-900/40 bg-[#070709]/85 backdrop-blur-md flex flex-col items-center justify-center px-4 py-3 z-30 transition-all">
               
               {/* Floating laser barrier (Shield barrier wall representation) */}
               <div className="absolute top-0 left-0 w-full h-[1px] flex justify-between items-center">
                 <div className={`w-full h-full opacity-20 bg-current ${getThemeTextClass()} animate-pulse`} />
-                <span className="absolute right-6 -top-2 px-2 py-0.5 rounded bg-zinc-950 border border-zinc-900 text-[8px] text-zinc-600 font-mono tracking-widest uppercase">
-                  DANGER LINE LIMIT
+                <span className="absolute right-6 -top-2 px-2 py-0.5 rounded bg-zinc-950 border border-zinc-900 text-[8px] text-zinc-650 font-mono tracking-widest uppercase">
+                  SHIELD EMISSION HOVER LINE
                 </span>
               </div>
 
               {/* Minimalist floating input prompt feedback */}
-              <div className="w-full max-w-md flex flex-col items-center gap-1.5 pointer-events-none">
-                <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 font-mono tracking-widest uppercase">
+              <div className="w-full max-w-md flex flex-col items-center gap-1.5">
+                <div className="flex items-center gap-1.5 text-[8px] text-zinc-500 font-mono tracking-widest uppercase">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> TERRESTRIAL COGNITIVE LINK
+                  {activeWordId && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveWordId(null)}
+                      className="ml-2 px-1.5 py-0.5 rounded bg-rose-950/30 border border-rose-500/20 text-rose-400 hover:text-rose-200 cursor-pointer pointer-events-auto"
+                    >
+                      [BREAK ACQUISITION TARGET LOCK]
+                    </button>
+                  )}
                 </div>
                 
                 {/* Visual diagnostic bar typing buffer */}
-                <div className={`w-full h-10 rounded-lg bg-zinc-950/80 border border-zinc-900 flex items-center justify-center px-4 font-mono text-sm leading-none text-zinc-300 select-none box-glow-${neonThemeColor}`}>
+                <div className={`w-full h-10 rounded-lg bg-zinc-950/80 border border-zinc-900 flex items-center justify-center px-4 font-mono text-sm leading-none text-zinc-350 select-none box-glow-${neonThemeColor}`}>
                   {activeWordId ? (
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] text-zinc-600">LOCKED:</span>
@@ -1619,13 +1944,47 @@ export default function App() {
                     setGameState('ended');
                     handleRunFinished();
                   }}
-                  className="px-2.5 py-1 rounded bg-zinc-950 border border-zinc-900 font-mono text-[9px] text-zinc-600 hover:text-zinc-300 transition-all cursor-pointer"
+                  className="px-2.5 py-1 rounded bg-zinc-950 border border-zinc-900 font-mono text-[9px] text-zinc-600 hover:text-zinc-300 transition-all cursor-pointer pointer-events-auto"
                 >
                   [ABORT SIMULATION]
                 </button>
               </div>
 
             </div>
+
+            {/* Conditional Touch Keyboard & Native Mobile Inputs stacking */}
+            {(inputMode === 'touch_keyboard' || inputMode === 'hybrid') && (
+              <div className="w-full bg-[#050508]/90 border-t border-zinc-900/60 p-3 relative z-40 transition-all">
+                <TouchKeyboard
+                  onKeyPress={(key) => processIncomingChar(key)}
+                  words={words}
+                  activeWordId={activeWordId}
+                  neonThemeColor={neonThemeColor}
+                  oneHanded={accessibility.oneHanded}
+                  caseInsensitive={caseInsensitive}
+                />
+              </div>
+            )}
+
+            {inputMode === 'native_mobile' && (
+              <div className="w-full bg-[#050508]/95 border-t border-zinc-900/60 p-3 flex flex-col items-center relative z-40 transition-all">
+                <div className="w-full max-w-sm">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="TAP HERE TO PULL DEVICE VIRTUAL KEYBOARD..."
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.length > 0) {
+                        processIncomingChar(val.slice(-1));
+                      }
+                      e.target.value = '';
+                    }}
+                    className="w-full text-center text-xs font-mono uppercase bg-zinc-950 border border-zinc-800 rounded-lg py-2.5 text-zinc-250 outline-none focus:border-cyan-500 transition tracking-widest placeholder-zinc-700 font-semibold"
+                  />
+                </div>
+              </div>
+            )}
 
           </div>
         )}
