@@ -1083,197 +1083,205 @@ export default function App() {
         
         {/* ==================== 1. COGNITIVE TERMINAL LOBBY ==================== */}
         {gameState === 'lobby' && (
-          <div className="flex-grow flex flex-col items-center justify-start overflow-y-auto px-4 py-8 md:py-12 z-40">
-            <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="flex-grow flex flex-col items-center justify-center overflow-y-auto p-3 sm:p-5 z-40 h-full w-full max-w-5xl mx-auto">
+            <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
               
-              {/* Profile Link and Cloud sync panel */}
-              <div className="lg:col-span-12 flex flex-col sm:flex-row justify-between items-center bg-[#070709]/85 border border-white/[0.03] backdrop-blur-md rounded-xl p-4 gap-4">
+              {/* Sleek Header Row */}
+              <div className="md:col-span-12 flex flex-col md:flex-row justify-between items-center bg-[#070709]/85 border border-white/[0.04] backdrop-blur-md rounded-xl p-3 gap-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${getThemeBorderClass()}`}>
-                    <User size={14} />
+                    <Terminal size={14} className={getThemeTextClass()} />
                   </div>
                   <div className="text-left">
-                    <span className="block text-[9px] font-mono tracking-widest text-zinc-500">OPERATIVE ID:</span>
+                    <span className="block text-[8px] font-mono tracking-widest text-zinc-500">OPERATIVE PILOT SYSTEM:</span>
                     <span className="block font-mono text-xs font-semibold text-zinc-300">
-                      {currentUser ? (currentUser.displayName || currentUser.uid.slice(0, 12)) : 'OFFLINE_SANDBOX_MODE'}
+                      {currentUser ? (currentUser.displayName || currentUser.uid.slice(0, 12)) : 'GUEST // OFFLINE_MODE'}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-center gap-3 font-mono text-xs">
+                  <div className="text-zinc-400 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800 flex items-center gap-1.5">
+                    <Flame size={12} className="text-amber-500" /> SYNC HIGH RECORD: 
+                    <span className="font-bold text-zinc-200">{highScore.toLocaleString()} PTS</span>
+                  </div>
+
                   {!currentUser ? (
-                    <>
+                    <div className="flex gap-1.5">
                       <button 
                         onClick={anonymousAuth} 
                         disabled={isLinkingAuth}
-                        className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 hover:text-white hover:bg-zinc-800 transition duration-150 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-[9px] font-bold text-zinc-400 hover:text-white hover:bg-zinc-850 transition duration-150 cursor-pointer"
                       >
                         ANON BYPASS
                       </button>
                       <button 
                         onClick={googleAuth} 
                         disabled={isLinkingAuth}
-                        className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 hover:text-white hover:bg-zinc-800 flex items-center gap-1.5 transition duration-150 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-[9px] font-bold text-zinc-400 hover:text-white hover:bg-zinc-850 flex items-center gap-1.5 transition duration-150 cursor-pointer"
                       >
-                        <Sparkles size={11} className="text-amber-400" />
+                        <Sparkles size={10} className="text-amber-400" />
                         LINK GOOGLE SYNC
                       </button>
-                    </>
+                    </div>
                   ) : (
                     <button 
                       onClick={logoutAuth}
-                      className="px-3 py-1.5 rounded bg-zinc-950 border border-zinc-900 text-[10px] font-mono text-zinc-500 hover:text-red-400 hover:border-red-950/50 flex items-center gap-1.5 transition duration-150 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-900 text-[9px] text-zinc-500 hover:text-red-400 hover:border-red-950/50 flex items-center gap-1.5 transition duration-150 cursor-pointer"
                     >
-                      <LogOut size={11} /> SIGNOUT COGNITIVE LINK
+                      <LogOut size={10} /> DISCONNECT LINK
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Lobby Columns Configuration */}
-              <div className="lg:col-span-7 flex flex-col gap-6">
+              {/* Column 1 - Primary Command Launch Center */}
+              <div className="md:col-span-7 flex flex-col gap-4">
                 
-                {/* Main Console Branding Area */}
-                <div className={`bg-[#070709]/75 border border-white/[0.02] rounded-2xl p-6 backdrop-blur-md shadow-2xl box-glow-${neonThemeColor} transition-all duration-300`}>
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-950 border border-zinc-800/80 mb-3 text-[9px] tracking-[0.2em] font-mono text-zinc-500">
-                      <Terminal size={12} className={getThemeTextClass()} /> METRIC SYNAPSE SYSTEMS v1.8
-                    </div>
-                    
-                    <h1 className="text-3xl md:text-4xl font-display font-medium tracking-tight text-white uppercase">
+                {/* Unified Premium Play Card */}
+                <div className={`bg-gradient-to-br from-[#070709]/90 to-[#0e0e12]/95 border border-white/[0.04] rounded-2xl p-5 backdrop-blur-md shadow-2xl relative overflow-hidden flex flex-col justify-between transition-all duration-300 box-glow-${neonThemeColor}`}>
+                  
+                  {/* Decorative faint grid details */}
+                  <div className="absolute top-2 right-2 flex gap-1 font-mono text-[8px] text-zinc-700 select-none z-0">
+                    <span>SYS_ONLINE</span>
+                    <span>■</span>
+                  </div>
+
+                  <div className="relative z-10 flex flex-col items-center text-center">
+                    <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight text-white uppercase leading-none">
                       TYPE<span className={getThemeTextClass()}>RUSH</span>
                     </h1>
-                    
-                    <p className="text-zinc-500 text-xs font-mono mt-2 leading-relaxed max-w-lg">
-                      Defend your primary containment shield metrics against flying thematic debris. Engage laser buffers, survive high velocities, and hack orbital duels.
+                    <p className="text-zinc-500 text-xs font-mono tracking-wide mt-1.5 max-w-sm">
+                      Dismantle dynamic debris, synchronize cockpit controls, and pilot containment fields over procedural audio stems.
                     </p>
+
+                    {/* Highly prominent, immediately visible PLAY action */}
+                    {roomMatchmakingStatus !== 'countdown' ? (
+                      <button
+                        onClick={startGame}
+                        className={`w-full sm:w-auto mt-4 px-10 py-3 rounded-xl font-display font-semibold border flex items-center justify-center gap-2 text-md transition-all duration-300 hover:scale-[1.04] shadow-lg cursor-pointer ${getThemeTextGlowClass()} animate-pulse-slow`}
+                      >
+                        <Play size={18} />
+                        <span>LAUNCH COGNITIVE THRESHOLD</span>
+                      </button>
+                    ) : (
+                      <div className="py-4 text-center">
+                        <span className="text-pink-400 font-bold block">LOCK-IN SYNCED FIGHT SEQUENCE...</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Algorithmic Theme Synthesis Form (Gemini Integration) */}
-                <div className="bg-[#070709]/75 border border-white/[0.02] rounded-2xl p-6 backdrop-blur-md">
-                  <h2 className="font-mono text-xs text-zinc-400 font-semibold tracking-wider uppercase mb-3 flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-amber-500 animate-pulse" /> ALGORITHMIC THEME SYNTHESIS (GEMINI POWERED)
+                {/* Gemini AI Core Forging */}
+                <div className="bg-[#070709]/75 border border-white/[0.03] rounded-2xl p-4 backdrop-blur-md">
+                  <h2 className="font-mono text-[10px] text-zinc-400 font-bold tracking-wider uppercase mb-1.5 flex items-center gap-1.5">
+                    <Sparkles size={12} className="text-amber-500 animate-pulse" /> ALGORITHMIC THEME SYNTHESIS // GEMINI
                   </h2>
-                  <p className="text-[11px] text-zinc-500 font-mono mb-4 leading-relaxed">
-                    Type an abstract prompt below. Our generative core will forge custom vocabularies, ambient accent colors, and sensory dictionary definitions on-demand.
+                  <p className="text-[10px] text-zinc-500 font-mono mb-2 leading-tight">
+                    Type any creative prompt to generate themed vocabularies, color designs, and definition overlays.
                   </p>
                   
-                  <form onSubmit={handleSynthesizeTheme} className="flex gap-2 mb-3">
+                  <form onSubmit={handleSynthesizeTheme} className="flex gap-2">
                     <input 
                       type="text"
-                      placeholder="e.g. quantum entanglement calculus, 1980s retro cyber grid, hyperborean maritime tales"
+                      placeholder="e.g. quantum physics, retro matrix, maritime legends..."
                       value={themePrompt}
                       onChange={(e) => setThemePrompt(e.target.value)}
                       disabled={isSynthesizing}
-                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-emerald-800 transition"
+                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-cyan-800 transition"
                     />
                     <button 
                       type="submit"
                       disabled={isSynthesizing}
-                      className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:from-zinc-900 border border-emerald-950/50 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 text-zinc-100 cursor-pointer"
+                      className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:from-zinc-900 border border-emerald-950/50 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1 text-zinc-100 cursor-pointer"
                     >
                       {isSynthesizing ? (
-                        <>
-                          <div className="w-3 h-3 border-2 border-zinc-100 border-t-transparent rounded-full animate-spin" />
-                          <span>FORGING...</span>
-                        </>
+                        <div className="w-3 h-3 border-2 border-zinc-100 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <>
-                          <Send size={12} />
-                          <span>SYNAPSE</span>
-                        </>
+                        <Send size={11} />
                       )}
+                      <span>FORGE</span>
                     </button>
                   </form>
 
-                  {synthesizedTheme ? (
-                    <div className="p-3 bg-emerald-950/10 border border-emerald-500/20 rounded-lg flex justify-between items-center">
-                      <div>
-                        <span className="block text-[8px] font-mono tracking-widest text-emerald-500 font-bold uppercase">SYNTH_CORE ACTIVE</span>
-                        <span className="block text-xs font-mono font-semibold text-zinc-300">{synthesizedTheme.name}</span>
-                        <span className="block text-[10px] text-zinc-500 font-mono italic mt-0.5">{synthesizedTheme.description}</span>
+                  {synthesizedTheme && (
+                    <div className="mt-2.5 p-2 bg-emerald-950/10 border border-emerald-500/20 rounded-lg flex justify-between items-center font-mono">
+                      <div className="text-left">
+                        <span className="block text-[8px] font-bold text-emerald-500 uppercase tracking-widest">SYNTH_CORE ACTIVE IP:</span>
+                        <span className="block text-xs font-semibold text-zinc-300">{synthesizedTheme.name}</span>
                       </div>
                       <button 
                         onClick={clearSynthesizedTheme}
-                        className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 text-[9px] font-mono text-zinc-400 hover:text-red-400 hover:border-red-950 transition duration-150 cursor-pointer"
+                        className="px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[8px] text-zinc-400 hover:text-red-400 transition cursor-pointer"
                       >
-                        [RESET]
+                        [WIPE]
                       </button>
                     </div>
-                  ) : (
-                    <span className="block text-[9px] text-zinc-600 font-mono text-center">Awaiting prompt input to synthesize atmospheric grid assets...</span>
                   )}
                 </div>
 
-                {/* Multiplayer Mode Switcher Terminal */}
-                <div className="bg-[#070709]/75 border border-white/[0.02] rounded-2xl p-6 backdrop-blur-md">
-                  <h2 className="font-mono text-xs text-zinc-400 font-semibold tracking-wider uppercase mb-4 flex items-center gap-1.5">
-                    <Sword size={14} className={getThemeTextClass()} /> PLAY MODE MATCHMAKING CENTER
+                {/* Matchmaking Mode Selector */}
+                <div className="bg-[#070709]/75 border border-white/[0.03] rounded-2xl p-4 backdrop-blur-md">
+                  <h2 className="font-mono text-[10px] text-zinc-400 font-bold tracking-wider uppercase mb-2.5 flex items-center gap-1.5">
+                    <Sword size={12} className={getThemeTextClass()} /> PLAY MODE DECISIONS
                   </h2>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4 font-mono text-[11px]">
+                  <div className="grid grid-cols-3 gap-2 font-mono text-[10px]">
                     <button 
                       onClick={() => { setGameMode('solo'); handleAbortMatchmaking(); }}
-                      className={`px-3 py-2.5 border rounded-lg text-center transition cursor-pointer ${gameMode === 'solo' ? getThemeBorderClass() + ' ' + getThemeBgClass() : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
+                      className={`px-2 py-2 border rounded-lg text-center transition cursor-pointer ${gameMode === 'solo' ? getThemeBorderClass() + ' ' + getThemeBgClass() : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
                     >
-                      ● SOLO PRACTICE
+                      ● SOLO
                     </button>
                     <button 
                       onClick={() => { setGameMode('duel_vs_ai'); handleAbortMatchmaking(); }}
-                      className={`px-3 py-2.5 border rounded-lg text-center transition cursor-pointer ${gameMode === 'duel_vs_ai' ? getThemeBorderClass() + ' ' + getThemeBgClass() : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
+                      className={`px-2 py-2 border rounded-lg text-center transition cursor-pointer ${gameMode === 'duel_vs_ai' ? getThemeBorderClass() + ' ' + getThemeBgClass() : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
                     >
-                      ● VS CORE AI BOT
+                      ● VS AI BOT
                     </button>
                     <button 
                       onClick={() => setGameMode('online_duel')}
-                      className={`px-3 py-2.5 border rounded-lg text-center transition cursor-pointer ${gameMode === 'online_duel' ? 'border-pink-500/50 bg-pink-950/10 text-pink-400 font-semibold' : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
+                      className={`px-2 py-2 border rounded-lg text-center transition cursor-pointer ${gameMode === 'online_duel' ? 'border-pink-500/50 bg-pink-950/15 text-pink-400 font-semibold shadow-[0_0_8px_rgba(244,63,94,0.1)]' : 'border-zinc-800 bg-zinc-950/20 text-zinc-500'}`}
                     >
-                      🛰️ ONLINE PVP DUEL
+                      📡 NET PVP
                     </button>
                   </div>
 
                   {gameMode === 'online_duel' && (
-                    <div className="p-4 bg-zinc-950/50 border border-zinc-800 rounded-xl font-mono text-xs">
+                    <div className="mt-2.5 p-3 bg-zinc-950/50 border border-zinc-800/85 rounded-xl font-mono text-xs">
                       {!currentUser ? (
-                        <div className="text-center py-2 text-zinc-500">
-                          <Info size={16} className="mx-auto mb-2 text-amber-500 animate-pulse" />
-                          <span>Multiplayer requires signed auth. Please click Anonymously Bypass or Google Link above.</span>
+                        <div className="text-center py-1 text-zinc-500 text-[10px]">
+                          <span>Authentication required. Please trigger bypass/sync link above.</span>
                         </div>
                       ) : (
-                        <div className="flex flex-col gap-4">
-                          <div className="flex items-center justify-between text-[10px] text-zinc-500 border-b border-zinc-900 pb-2">
-                            <span>ONLINE CONDUIT ACTIVE</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> STABLE</span>
-                          </div>
-
+                        <div className="flex flex-col gap-3">
                           {roomMatchmakingStatus === 'idle' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="flex flex-col gap-1 text-left">
-                                <span className="text-[10px] text-zinc-500">OPTION A: ORIGINATE ROOM</span>
+                            <div className="grid grid-cols-2 gap-3 text-left">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[8px] text-zinc-500">A // HOST CONDUIT</span>
                                 <button
                                   onClick={handleCreateRoom}
-                                  className="mt-1 px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-lg text-[11px] font-bold text-zinc-100 flex items-center justify-center gap-1.5 cursor-pointer"
+                                  className="px-2.5 py-1.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-lg text-[9px] font-bold text-zinc-100 flex items-center justify-center gap-1 cursor-pointer"
                                 >
-                                  <Plus size={12} /> SPITFIRE CREATE ROOM
+                                  <Plus size={10} /> HOST ROOM
                                 </button>
                               </div>
 
-                              <div className="flex flex-col gap-1 text-left">
-                                <span className="text-[10px] text-zinc-500">OPTION B: INPUT SYNC TERMINAL ID</span>
-                                <div className="flex gap-1.5 mt-1">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[8px] text-zinc-500">B // CONNECT TO IP</span>
+                                <div className="flex gap-1">
                                   <input 
                                     type="text" 
                                     placeholder="SYNC-1234"
                                     value={roomIdInput}
                                     onChange={(e) => setRoomIdInput(e.target.value)}
-                                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2 text-center text-xs text-zinc-200 uppercase focus:outline-none focus:border-pink-800"
+                                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded px-1.5 text-center text-[10px] text-zinc-200 uppercase focus:outline-none focus:border-pink-800"
                                   />
                                   <button
                                     onClick={handleJoinRoom}
-                                    className="px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-[11px] font-bold text-pink-400 cursor-pointer"
+                                    className="px-2 bg-zinc-900 border border-zinc-800 rounded text-[9px] font-bold text-pink-400 cursor-pointer"
                                   >
-                                    SYNC
+                                    JOIN
                                   </button>
                                 </div>
                               </div>
@@ -1281,16 +1289,12 @@ export default function App() {
                           )}
 
                           {roomMatchmakingStatus === 'creating' && (
-                            <div className="text-center py-4">
-                              <div className="w-6 h-6 border-2 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                              <span className="text-zinc-400 block font-semibold mb-1">AWAITING ADVERSARY JOINEE...</span>
-                              <span className="text-[10px] block text-zinc-500 uppercase tracking-widest">ROOM IDENTIFIER: <b className="text-pink-400 select-all">{activeRoomId}</b></span>
-                              <p className="text-[10px] text-zinc-600 italic mt-3 max-w-sm mx-auto">
-                                Tip: Copy this roomId or open this app in another window/tab, input the ID to test real-time typing glitches!
-                              </p>
+                            <div className="text-center py-2 flex flex-col items-center">
+                              <div className="w-4 h-4 border-2 border-pink-500 border-t-transparent rounded-full animate-spin mb-1.5" />
+                              <span className="text-[9px] text-zinc-500 uppercase tracking-widest">SEND TERMINAL LINK: <b className="text-pink-450 select-all font-mono ml-1">{activeRoomId}</b></span>
                               <button 
                                 onClick={handleAbortMatchmaking}
-                                className="mt-4 px-3 py-1 bg-zinc-950 hover:bg-zinc-900 border border-zinc-900 rounded text-[9px] text-zinc-500 cursor-pointer"
+                                className="mt-1.5 px-2 py-0.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-900 rounded text-[8px] text-zinc-500 cursor-pointer"
                               >
                                 ABORT
                               </button>
@@ -1298,10 +1302,9 @@ export default function App() {
                           )}
 
                           {roomMatchmakingStatus === 'countdown' && (
-                            <div className="text-center py-4">
-                              <Radio className="mx-auto mb-3 text-pink-500 animate-ping" size={28} />
-                              <span className="text-pink-400 font-bold text-lg block">ENGAGING DUAL SYSTEMS IN {multiplayerCountdown}s</span>
-                              <span className="text-[9px] text-zinc-500 tracking-wider">HOST: {roomHostName} VS GUEST: {roomGuestName}</span>
+                            <div className="text-center py-2">
+                              <span className="text-pink-400 font-bold block text-sm">ENGAGING IN {multiplayerCountdown}s</span>
+                              <span className="text-[8px] text-zinc-500">{roomHostName} vs {roomGuestName}</span>
                             </div>
                           )}
                         </div>
@@ -1312,26 +1315,39 @@ export default function App() {
 
               </div>
 
-              {/* Sidebar: Preferences & Personal cloud database history */}
-              <div className="lg:col-span-5 flex flex-col gap-6">
+              {/* Column 2 - Settings and Diagnostics Graph */}
+              <div className="md:col-span-5 flex flex-col gap-4">
                 
-                {/* Visual Laser and Control Customization Settings */}
-                <div className="bg-[#070709]/75 border border-white/[0.02] rounded-2xl p-6 backdrop-blur-md">
-                  <h2 className="font-mono text-xs text-zinc-400 font-semibold tracking-wider uppercase mb-3 flex items-center gap-1.5">
-                    <Crosshair size={14} className={getThemeTextClass()} /> METRIC SETTINGS & WEAPON STYLE
+                {/* Compact Tactical Weapons / Laser settings */}
+                <div className="bg-[#070709]/75 border border-white/[0.03] rounded-2xl p-4 backdrop-blur-md text-left">
+                  <h2 className="font-mono text-[10px] text-zinc-400 font-bold tracking-wider uppercase mb-2.5 flex items-center gap-1.5">
+                    <Crosshair size={12} className={getThemeTextClass()} /> WEAPON TARGET RETICLES
                   </h2>
 
-                  <div className="flex flex-col gap-4 font-mono text-[11px]">
-                    
-                    {/* Laser selection type */}
-                    <div>
-                      <span className="block text-[10px] text-zinc-500 mb-2 font-bold tracking-wider">LASER RETICLE TARGETING:</span>
-                      <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col gap-2.5 font-mono text-[10px]">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 font-bold">ACCENT:</span>
+                      <div className="flex gap-1">
+                        {['cyan', 'purple', 'green', 'pink'].map(col => (
+                          <button
+                            key={col}
+                            onClick={() => setNeonThemeColor(col)}
+                            style={{ backgroundColor: getThemeHexColor(col) }}
+                            className={`w-4 h-4 rounded-full border cursor-pointer hover:scale-110 transition ${neonThemeColor === col ? 'border-white scale-105 shadow-md' : 'border-transparent'}`}
+                            title={col}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 font-bold">RETICLE:</span>
+                      <div className="flex gap-1.5">
                         {['quantum', 'ring', 'crosshair'].map(style => (
                           <button
                             key={style}
                             onClick={() => setLaserStyle(style as any)}
-                            className={`px-2 py-1.5 border rounded-lg text-center uppercase cursor-pointer ${laserStyle === style ? 'border-cyan-500 bg-cyan-950/10 text-cyan-400' : 'border-zinc-800 text-zinc-500 bg-zinc-950/20'}`}
+                            className={`px-2 py-1 border rounded text-[8px] uppercase transition cursor-pointer ${laserStyle === style ? 'border-cyan-500 bg-cyan-950/20 text-cyan-400 font-bold' : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'}`}
                           >
                             {style}
                           </button>
@@ -1339,153 +1355,99 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Aura accent selection */}
-                    <div>
-                      <span className="block text-[10px] text-zinc-500 mb-2 font-bold tracking-wider">PRIMARY ACCENT WEAPON:</span>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: 'cyan', label: 'CYAN BEAM' },
-                          { id: 'purple', label: 'VIOLET NET' },
-                          { id: 'green', label: 'EMERALD NET' },
-                          { id: 'pink', label: 'ROSE IMPULSE' }
-                        ].map(theme => (
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 font-bold">GRAVITY:</span>
+                      <div className="flex gap-1">
+                        {['easy', 'medium', 'hard', 'chaos'].map(diff => (
                           <button
-                            key={theme.id}
-                            onClick={() => setNeonThemeColor(theme.id)}
-                            className={`px-3 py-1.5 border rounded-lg text-left cursor-pointer ${neonThemeColor === theme.id ? `${getThemeBorderClass(theme.id)} ${getThemeBgClass(theme.id)} font-bold` : 'border-zinc-800 bg-zinc-950/20 text-zinc-500 hover:text-zinc-300'}`}
+                            key={diff}
+                            onClick={() => setDifficulty(diff as Difficulty)}
+                            className={`px-1.5 py-0.5 border rounded-[4px] text-[8px] uppercase transition cursor-pointer ${difficulty === diff ? 'border-red-500 bg-red-950/20 text-red-400 font-bold' : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'}`}
                           >
-                            ● {theme.label}
+                            {diff}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* Classic dictionary categories */}
                     {!synthesizedTheme && (
-                      <div>
-                        <span className="block text-[10px] text-zinc-500 mb-2 font-bold tracking-wider font-mono">STANDARDIZED DICTIONARY PACK:</span>
-                        <div className="grid grid-cols-2 gap-2">
-                          {[
-                            { id: 'common', label: 'COMMON DIALOG' },
-                            { id: 'tech', label: 'CYBER CODE' },
-                            { id: 'cinematic', label: 'STELLAR EPIC' },
-                            { id: 'chaos', label: 'CHAOS DRIFT' }
-                          ].map(cat => (
+                      <div className="flex justify-between items-center border-t border-zinc-900 pt-2">
+                        <span className="text-zinc-500 font-bold">DICT PACK:</span>
+                        <div className="flex gap-1">
+                          {['common', 'tech', 'cinematic', 'chaos'].map(cat => (
                             <button
-                              key={cat.id}
-                              onClick={() => setCategory(cat.id as WordCategory)}
-                              className={`px-2 py-1.5 border rounded-lg text-left capitalize cursor-pointer ${category === cat.id ? `${getThemeBorderClass()} ${getThemeBgClass()} font-bold` : 'border-zinc-800 bg-zinc-950/20 text-zinc-500 hover:text-zinc-300'}`}
+                              key={cat}
+                              onClick={() => setCategory(cat)}
+                              className={`px-1.5 py-0.5 border rounded-[4px] text-[8px] capitalize transition cursor-pointer ${category === cat ? `${getThemeBorderClass()} ${getThemeBgClass()} font-bold` : 'border-zinc-800 text-zinc-500 bg-zinc-950/10'}`}
                             >
-                              {cat.label}
+                              {cat}
                             </button>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Gravity difficulty */}
-                    <div>
-                      <span className="block text-[10px] text-zinc-500 mb-2 font-bold tracking-wider">GRAVITY ACCELERATION DIFFICULTY:</span>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: 'easy', label: 'EASY SYSTEM' },
-                          { id: 'medium', label: 'STABLE CORE' },
-                          { id: 'hard', label: 'OVERLOAD' },
-                          { id: 'chaos', label: 'SINGULARITY' }
-                        ].map(diff => (
-                          <button
-                            key={diff.id}
-                            onClick={() => setDifficulty(diff.id as Difficulty)}
-                            className={`px-2 py-1.5 border rounded-lg text-center uppercase cursor-pointer ${difficulty === diff.id ? 'border-red-500 bg-red-950/20 text-red-400 font-bold' : 'border-zinc-800 text-zinc-500 bg-zinc-950/20'}`}
-                          >
-                            {diff.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 pt-2 border-t border-zinc-900">
+                    <div className="flex justify-between items-center pt-1">
                       <button
                         onClick={() => setCaseInsensitive(!caseInsensitive)}
-                        className="flex justify-between items-center px-2 py-1.5 rounded hover:bg-zinc-950 cursor-pointer"
+                        className="text-[9px] text-zinc-500 hover:text-zinc-400 cursor-pointer flex items-center gap-1"
                       >
-                        <span className="text-zinc-500">CASE INSENSITIVE MODE</span>
-                        <span className={caseInsensitive ? 'text-zinc-300 font-bold' : 'text-zinc-600'}>{caseInsensitive ? 'ACTIVE' : 'STRICT'}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${caseInsensitive ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
+                        <span>CASE INSENSITIVE</span>
                       </button>
+
                       <button
                         onClick={() => setFocusMode(!focusMode)}
-                        className="flex justify-between items-center px-2 py-1.5 rounded hover:bg-zinc-950 cursor-pointer"
+                        className="text-[9px] text-zinc-500 hover:text-zinc-400 cursor-pointer flex items-center gap-1"
                       >
-                        <span className="text-zinc-500">FOCUS CHROME HIDE HUD</span>
-                        <span className={focusMode ? 'text-zinc-300 font-bold' : 'text-zinc-600'}>{focusMode ? 'ACTIVE' : 'MUTED'}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${focusMode ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
+                        <span>FOCUS MODE</span>
                       </button>
                     </div>
 
                   </div>
                 </div>
 
-                {/* SVG Live Diagnostic/Leaderboard history */}
-                <div className="bg-[#070709]/75 border border-white/[0.02] rounded-2xl p-6 backdrop-blur-md text-left font-mono">
-                  <h2 className="text-xs text-zinc-400 font-semibold tracking-wider uppercase mb-3 flex items-center gap-1.5">
-                    <Trophy size={14} className="text-amber-500" /> HISTORIC DIAGNOSTICS GRAPHS
+                {/* Highly aesthetic compact diagnostic list & line graph */}
+                <div className="bg-[#070709]/75 border border-white/[0.03] rounded-2xl p-4 backdrop-blur-md text-left font-mono">
+                  <h2 className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase mb-2 flex items-center gap-1.5">
+                    <Trophy size={12} className="text-amber-500" /> HISTORIC VELOCITY PATHS
                   </h2>
 
                   {localHistory && localHistory.length > 0 ? (
-                    <div className="flex flex-col gap-4">
-                      {/* Breathtaking SVG Telemetry graph representation */}
-                      <div className="w-full h-24 border border-zinc-800/40 rounded bg-black/40 relative overflow-hidden p-1">
-                        <span className="absolute top-1 left-2 text-[8px] text-zinc-600">HISTORIC WPM VELOCITY VECTOR</span>
+                    <div className="flex flex-col gap-2.5">
+                      <div className="w-full h-16 border border-zinc-800/40 rounded bg-black/40 relative overflow-hidden p-0.5">
                         <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                           <polyline
                             fill="none"
                             stroke={getThemeHexColor()}
-                            strokeWidth="1.5"
+                            strokeWidth="2"
                             points={localHistory.map((h, i) => {
                               const x = (i / (localHistory.length - 1)) * 96 + 2;
-                              // Scale wpm between 0 and 120 limits
-                              const y = 90 - Math.min(90, (h.wpm / 120) * 80);
+                              const y = 92 - Math.min(84, (h.wpm / 120) * 80);
                               return `${x},${y}`;
                             }).join(' ')}
                           />
                         </svg>
                       </div>
 
-                      <div className="max-h-24 overflow-y-auto flex flex-col gap-1 pr-1">
-                        {localHistory.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[10px] bg-zinc-950/40 border border-zinc-900 px-2 py-1 rounded">
-                            <span className="text-zinc-400 font-bold">{Math.round(item.wpm)} WPM</span>
-                            <span className="text-zinc-600 font-semibold">{item.accuracy}% Acc</span>
-                            <span className="text-zinc-500 uppercase">{item.difficulty}</span>
+                      <div className="max-h-20 overflow-y-auto flex flex-col gap-1 pr-1 text-[9px]">
+                        {localHistory.slice(0, 4).map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center bg-zinc-950/40 border border-zinc-900 px-2 py-0.5 rounded text-zinc-400">
+                            <span className="font-bold text-zinc-350">{Math.round(item.wpm)} WPM</span>
+                            <span>{item.accuracy}% Acc</span>
+                            <span className="text-[8px] text-zinc-650 tracking-wide uppercase">{item.difficulty}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-zinc-600 text-[10px]">
-                      <Info size={16} className="mx-auto mb-2 text-zinc-700" />
-                      <span>NO RUNS RECORDED YET. ENGAGE CHIME AUTHENTICATION OVER CLOUD TO INITIATE CHRONOLOGICAL DIAGNOSTIC TELEMETRY GRAPHS.</span>
+                    <div className="text-center py-5 text-zinc-650 text-[9px] leading-tight">
+                      <span>SYNC YOUR ACCOUNT AT THE TOP TO LAUNCH AUTOMATED LOGGING HISTORY GRAPHS.</span>
                     </div>
                   )}
                 </div>
 
-              </div>
-
-              {/* Lobby footer: Start run action */}
-              <div className="lg:col-span-12 border-t border-zinc-900 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="font-mono text-xs text-zinc-500 flex items-center gap-1.5">
-                  <Flame size={14} className="text-amber-500" /> SYSTEM HIGH SCORE DIAGNOSTIC: 
-                  <span className="font-bold text-zinc-300 ml-1">{highScore.toLocaleString()} PTS</span>
-                </div>
-                
-                {roomMatchmakingStatus !== 'countdown' && (
-                  <button
-                    onClick={startGame}
-                    className={`w-full sm:w-auto px-10 py-3 rounded-xl font-display font-medium border flex items-center justify-center gap-2 text-md transition-all duration-300 hover:scale-[1.03] shadow-lg cursor-pointer ${getThemeTextGlowClass()}`}
-                  >
-                    <Play size={16} />
-                    <span>LAUNCH COGNITIVE THRESHOLD</span>
-                  </button>
-                )}
               </div>
 
             </div>
