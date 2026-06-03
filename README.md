@@ -159,6 +159,15 @@ This execution outputs:
 npm run start
 ```
 
+### GitHub Pages Deployment (Static Client Site)
+We have pre-configured `gh-pages` and relative asset loading roots inside `vite.config.ts`. To build and publish your static client application directly to your GitHub repository Pages branch, run:
+
+```bash
+npm run deploy
+```
+
+> **Note on Backend Integration:** GitHub Pages hosts static frontend assets only. The game's offline mode, local fallback lexicons, and real-time Firestore multi-player operations will function natively. If you wish to enable the live AI Word Synapse (Gemini API) generation under static environments, you can host the Express backend (`server.ts`) on platform endpoints such as Google Cloud Run or Render, the system fits both structures perfectly.
+
 ---
 
 ## 🧠 Core Functional Mechanics
